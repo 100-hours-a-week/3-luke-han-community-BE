@@ -9,16 +9,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SimpUserInfo {
+public class PasswordDto {
 
-    private Integer id;
+    private String oldPassword;
 
-    private String name;
-
-    private String profileImageUrl;
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
+    private String newPassword;
 
 }
