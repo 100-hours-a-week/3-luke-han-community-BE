@@ -17,4 +17,8 @@ public class SimpUserInfo {
 
     private String profileImageUrl;
 
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
 }
