@@ -24,6 +24,15 @@ public class AuthServiceImpl implements AuthService {
 
     private final PasswordEncoder passwordEncoder;
 
+    /**
+     * 회원가입 하는 검증 메서드
+     * 1. signup validation 진행
+     * 2. 새 User 엔티티 생성
+     * 3. save
+     *
+     * @param signupDto
+     * @param file
+     */
     @Override
     @Transactional
     public void signup(SignupDto signupDto, MultipartFile file) {
@@ -41,6 +50,15 @@ public class AuthServiceImpl implements AuthService {
         log.info("[AuthService] 회원가입 성공");
     }
 
+    /**
+     * 중복 이메일 확인하는 메서드
+     * 1. 이메일 validation 진행
+     * 2. User 존재하는지 확인
+     * 3. boolean 값 리턴
+     *
+     * @param value
+     * @return
+     */
     @Override
     public boolean checkEmail(ValueDto value) {
         log.info("[AuthService] 이메일 중복확인 시작");
@@ -52,6 +70,15 @@ public class AuthServiceImpl implements AuthService {
         return user != null;
     }
 
+    /**
+     * 닉네임 중복 여부 확인하는 메서드
+     * 1. 닉네임 validation 진행
+     * 2. User 존재하는지 확인
+     * 3. boolean 값 리턴
+     *
+     * @param value
+     * @return
+     */
     @Override
     public boolean checkNickname(ValueDto value) {
         log.info("[AuthService] 닉네임 중복확인 시작");
@@ -82,6 +109,12 @@ public class AuthServiceImpl implements AuthService {
         validateNickname(nickname);
     }
 
+    /**
+     * 이메일 validation하는 메서드
+     * ooo@ooo.ooo 형식인지 확인
+     *
+     * @param email
+     */
     private void validateEmail(String email) {
         String regex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
 
@@ -90,14 +123,26 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    /**
+     * 비밀번호 validation하는 메서드
+     * 8자 이상, 20자 이하, 대문자, 소문자, 특수문자 1개 이상 포함하는지 확인
+     *
+     * @param password
+     */
     private void validatePassword(String password) {
         String regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=`~\\[\\]{};':\",./<>?]).+$";
 
-        if (password.length() < 8 || password.length() > 20 || password.matches(regex)) {
+        if (password.length() < 8 || password.length() > 20 || !password.matches(regex)) {
             throw new BusinessException(ErrorCode.INVALID_FORMAT);
         }
     }
 
+    /**
+     * 닉네임 validation하는 메서드
+     * 비어있는지, 10자 이내인지, 중간에 띄어쓰기 있는지 확인
+     *
+     * @param nickname
+     */
     private void validateNickname(String nickname) {
         String regex = ".*\\s.*";
 
