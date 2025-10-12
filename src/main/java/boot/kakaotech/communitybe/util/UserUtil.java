@@ -6,14 +6,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import java.nio.file.attribute.UserPrincipalNotFoundException;
+
 @Component
 public class UserUtil {
 
-    public Integer getCurrentUserId() {
+    public Integer getCurrentUserId() throws UserPrincipalNotFoundException {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null) {
-            // TODO: 커스텀 에러 던지기
+            throw new UserPrincipalNotFoundException(null);
         }
 
         Object principal = authentication.getPrincipal();
@@ -24,11 +26,11 @@ public class UserUtil {
         return null;
     }
 
-    public User getCurrentUser() {
+    public User getCurrentUser() throws UserPrincipalNotFoundException {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null) {
-            // TODO: 커스텀 에러 던지기
+            throw new UserPrincipalNotFoundException(null);
         }
 
         Object principal = authentication.getPrincipal();

@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.util.List;
 
 @RestController
@@ -28,7 +29,7 @@ public class PostController {
         CursorPage<PostListWrapper> posts = postService.getPosts(cursor, size);
         log.info("[PostController] 게시글목록 조회 성공");
 
-        return ResponseEntity.ok(posts);
+        return posts != null ? ResponseEntity.ok(posts) : ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{postId}")
@@ -38,11 +39,11 @@ public class PostController {
         PostDetailWrapper post = postService.getPost(postId);
         log.info("[PostController] 게시글 상세조회 성공");
 
-        return ResponseEntity.ok(post);
+        return post != null ? ResponseEntity.ok(post) : ResponseEntity.noContent().build();
     }
 
     @PostMapping
-    public ResponseEntity<Integer> savePost(@RequestBody CreatePostDto createPostDto, @RequestBody List<String> images) {
+    public ResponseEntity<Integer> savePost(@RequestBody CreatePostDto createPostDto, @RequestBody List<String> images) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 생성 시작");
 
         Integer postId = postService.savePost(createPostDto, images);
@@ -55,7 +56,7 @@ public class PostController {
     public ResponseEntity<Void> updatePost(
             @PathVariable("postId") Integer postId,
             @RequestBody CreatePostDto createPostDto,
-            @RequestBody List<String> images) {
+            @RequestBody List<String> images) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 수정 시작");
 
         postService.updatePost(createPostDto, images);
@@ -65,7 +66,7 @@ public class PostController {
     }
 
     @PatchMapping("/{postId}/status")
-    public ResponseEntity<Void> updatePostStatus(@PathVariable("postId") Integer postId) {
+    public ResponseEntity<Void> updatePostStatus(@PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 삭제 시작");
 
         postService.softDeletePost(postId);

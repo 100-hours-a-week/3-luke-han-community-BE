@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.attribute.UserPrincipalNotFoundException;
+
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -31,11 +33,11 @@ public class CommentController {
         CursorPage<CommentDto> comments = commentService.getComments(postId, parentId, cursor, size);
         log.info("[CommentController] 댓글 조회 성공");
 
-        return ResponseEntity.ok(comments);
+        return comments != null ? ResponseEntity.ok(comments) : ResponseEntity.noContent().build();
     }
 
     @PostMapping("/post/{postId}/comments")
-    public ResponseEntity<Integer> addComment(@PathVariable("postId") Integer postId, @RequestBody CreateCommentDto dto) {
+    public ResponseEntity<Integer> addComment(@PathVariable("postId") Integer postId, @RequestBody CreateCommentDto dto) throws UserPrincipalNotFoundException {
         log.info("[CommentController] 댓글 생성 시작 - postId: {}", postId);
 
         Integer commentId = commentService.addComment(postId, dto);

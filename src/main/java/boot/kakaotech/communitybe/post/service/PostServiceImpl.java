@@ -1,5 +1,7 @@
 package boot.kakaotech.communitybe.post.service;
 
+import boot.kakaotech.communitybe.common.exception.BusinessException;
+import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.post.dto.CreatePostDto;
 import boot.kakaotech.communitybe.post.dto.PostDetailWrapper;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -37,7 +40,7 @@ public class PostServiceImpl implements PostService {
         List<PostListWrapper> posts = postRepository.getPostsUsingFetch(pageable);
 
         if (posts.isEmpty()) {
-            // TODO: 커스텀 에러 던지기
+            return null;
         }
 
         boolean hasNextCursor = posts.size() > size;
@@ -61,7 +64,7 @@ public class PostServiceImpl implements PostService {
         PostDetailWrapper post = postRepository.getPostById(postId);
 
         if (post == null) {
-            // TODO: 커스텀 에러 던지기
+            return null;
         }
 
         // TODO: 레디스에서 viewCount 증가로직 추가
@@ -71,7 +74,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public Integer savePost(CreatePostDto createPostDto, List<String> images) {
+    public Integer savePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 생성 시작");
 
         User author = userUtil.getCurrentUser();
@@ -92,12 +95,18 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public void updatePost(CreatePostDto createPostDto, List<String> images) {
+    public void updatePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 수정 시작");
+
+        User user = userUtil.getCurrentUser();
 
         Post post = postRepository.findById(createPostDto.getId()).orElse(null);
         if (post == null) {
-            // TODO: 커스텀 에러 던지기
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        if (!post.getAuthor().equals(user)) {
+            throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
         }
 
         String title = createPostDto.getTitle();
@@ -119,12 +128,18 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public void softDeletePost(int postId) {
+    public void softDeletePost(int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 삭제 시작");
+
+        User user = userUtil.getCurrentUser();
 
         Post post = postRepository.findById(postId).orElse(null);
         if (post == null) {
-            // TODO: 커스텀 에러 던지기
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        if (!post.getAuthor().equals(user)) {
+            throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
         }
 
         post.setDeletedAt(LocalDateTime.now());

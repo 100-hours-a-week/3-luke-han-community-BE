@@ -5,6 +5,8 @@ import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import boot.kakaotech.communitybe.comment.dto.CreateCommentDto;
 import boot.kakaotech.communitybe.comment.entity.Comment;
 import boot.kakaotech.communitybe.comment.repository.CommentRepository;
+import boot.kakaotech.communitybe.common.exception.BusinessException;
+import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.post.entity.Post;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -38,7 +41,7 @@ public class CommentServiceImpl implements CommentService {
         List<CommentDto> comments = commentRepository.getComments(postId, parentId, pageable);
 
         if (comments.isEmpty()) {
-            // TODO: 커스텀 에러 던지기
+            return null;
         }
 
         boolean hasNextCursor = comments.size() > size;
@@ -53,7 +56,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    public Integer addComment(Integer postId, CreateCommentDto dto) {
+    public Integer addComment(Integer postId, CreateCommentDto dto) throws UserPrincipalNotFoundException {
         log.info("[CommentService] 댓글 생성 시작");
 
         Integer parentId = dto.getParentId();
@@ -76,12 +79,18 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    public void updateComment(Integer commentId, ValueDto value) {
+    public void updateComment(Integer commentId, ValueDto value) throws UserPrincipalNotFoundException {
         log.info("[CommentService] 댓글 수정 시작");
+
+        User user = userUtil.getCurrentUser();
 
         Comment comment = commentRepository.findById(commentId).orElse(null);
         if (comment == null) {
-            // TODO: 커스텀 에러 던지기
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        if (!comment.getUser().equals(user)) {
+            throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
         }
 
         comment.setContent(value.getValue());
@@ -89,12 +98,17 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    public void softDeleteComment(Integer commentId) {
+    public void softDeleteComment(Integer commentId) throws UserPrincipalNotFoundException {
         log.info("[CommentService] 댓글 삭제 시작");
+        User user = userUtil.getCurrentUser();
 
         Comment comment = commentRepository.findById(commentId).orElse(null);
         if (comment == null) {
-            // TODO: 커스텀 에러 던지기
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        if (!comment.getUser().equals(user)) {
+            throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
         }
 
         comment.setDeletedAt(LocalDateTime.now());
