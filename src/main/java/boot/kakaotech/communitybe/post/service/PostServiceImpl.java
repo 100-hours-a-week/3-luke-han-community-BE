@@ -32,6 +32,17 @@ public class PostServiceImpl implements PostService {
 
     private final UserUtil userUtil;
 
+    /**
+     * 게시글 목록 조회
+     * 1. Pageable 객체 생성
+     * 2. repository로 List 조회
+     * 3. 비어있으면 null 반환
+     * 4. size를 하나 더 가져와서 다음에 요청 보낼게 있나 flag 설정 후 반환
+     *
+     * @param cursor
+     * @param size
+     * @return
+     */
     @Override
     public CursorPage<PostListWrapper> getPosts(int cursor, int size) {
         log.info("[PostService] 게시글 목록 조회 시작");
@@ -57,6 +68,16 @@ public class PostServiceImpl implements PostService {
                 .build();
     }
 
+    /**
+     * 게시글 상세조회
+     * 1. PostDetailWrapper dto에 맞춰 조회
+     * 2. null이면 반환
+     * 3. 뷰카운터 증가
+     * 4. post 반환
+     *
+     * @param postId
+     * @return
+     */
     @Override
     public PostDetailWrapper getPost(int postId) {
         log.info("[PostService] 게시글 상세조회 시작");
@@ -72,6 +93,18 @@ public class PostServiceImpl implements PostService {
         return post;
     }
 
+    /**
+     * 게시글 생성
+     * 1. 요청보낸 User 조회
+     * 2. Post 엔티티 생성
+     * 3. 이미지가 있다면 presigned url 발급
+     * 4. 저장
+     *
+     * @param createPostDto
+     * @param images
+     * @return
+     * @throws UserPrincipalNotFoundException
+     */
     @Override
     @Transactional
     public Integer savePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
@@ -93,6 +126,19 @@ public class PostServiceImpl implements PostService {
         return post.getId();
     }
 
+    /**
+     * 게시글 수정
+     * 1. 요청보낸 User 조회
+     * 2. Post 조회
+     * 3. post가 없거나 작성자가 아니면 throw error
+     * 4. 게시글 수정
+     * 5. 이미지 변경이 있다면 새로운 이미지 presigned url 생성 후 반환
+     * 6. 저장
+     *
+     * @param createPostDto
+     * @param images
+     * @throws UserPrincipalNotFoundException
+     */
     @Override
     @Transactional
     public void updatePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
@@ -127,6 +173,16 @@ public class PostServiceImpl implements PostService {
         postRepository.save(post);
     }
 
+    /**
+     * 게시글 삭제
+     * 1. 요청보낸 User 조회
+     * 2. post 조회
+     * 3. 없거나 작성자가 아니면 throw error
+     * 4. post의 deletedAt을 설정 후 저장
+     *
+     * @param postId
+     * @throws UserPrincipalNotFoundException
+     */
     @Override
     public void softDeletePost(int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 삭제 시작");
