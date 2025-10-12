@@ -5,6 +5,7 @@ import boot.kakaotech.communitybe.post.dto.CreatePostDto;
 import boot.kakaotech.communitybe.post.dto.PostDetailWrapper;
 import boot.kakaotech.communitybe.post.dto.PostListWrapper;
 
+import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.util.List;
 
 public interface PostService {
@@ -13,10 +14,10 @@ public interface PostService {
 
     PostDetailWrapper getPost(int postId);
 
-    Integer savePost(CreatePostDto createPostDto, List<String> images);
+    Integer savePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException;
 
-    void updatePost(CreatePostDto createPostDto, List<String> images);
+    void updatePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException;
 
-    void softDeletePost(int postId);
+    void softDeletePost(int postId) throws UserPrincipalNotFoundException;
 
 }

@@ -1,5 +1,7 @@
 package boot.kakaotech.communitybe.auth.service;
 
+import boot.kakaotech.communitybe.common.exception.BusinessException;
+import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.user.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -42,7 +44,7 @@ public class JwtServiceImpl implements JwtService {
         String email = extractEmailFromToken(accessToken);
 
         if (!email.equals(user.getUsername())) {
-            // TODO: 커스텀 예외 던지기
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
         return true;
@@ -63,7 +65,7 @@ public class JwtServiceImpl implements JwtService {
     public boolean isValidRefreshToken(String refreshToken, UserDetails user) {
         String email = extractEmailFromToken(refreshToken);
         if (!email.equals(user.getUsername())) {
-            // TODO: 커스텀 예외 던지기
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
         // TODO: redis에 저장된 리프레시 토큰과 비교 로직 추가
