@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,6 +32,9 @@ public class PostServiceImpl implements PostService {
     private final PostRepository postRepository;
 
     private final UserUtil userUtil;
+
+    private final RedisTemplate<String, String> redisTemplate;
+    private static final String VIEW_COUNT_PREFIX = "post_view:";
 
     /**
      * 게시글 목록 조회
@@ -88,7 +92,16 @@ public class PostServiceImpl implements PostService {
             return null;
         }
 
-        // TODO: 레디스에서 viewCount 증가로직 추가
+        Integer count = Integer.parseInt(redisTemplate.opsForValue().get(VIEW_COUNT_PREFIX + postId));
+        if (count == null) {
+            count = post.getPost().getViewCount();
+        }
+
+        redisTemplate.opsForValue().set(
+                VIEW_COUNT_PREFIX + postId,
+                Integer.toString(count + 1)
+        );
+        post.getPost().setViewCount(count + 1);
 
         return post;
     }

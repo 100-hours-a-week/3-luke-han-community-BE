@@ -51,7 +51,7 @@ public class CommentController {
             @PathVariable("postId") Integer postId,
             @PathVariable("commentId") Integer commentId,
             @RequestBody ValueDto value
-    ) {
+    ) throws UserPrincipalNotFoundException {
         log.info("[CommentController] 댓글 수정 시작 - postId: {}, commentId: {}", postId, commentId);
 
         commentService.updateComment(commentId, value);
@@ -64,7 +64,7 @@ public class CommentController {
     public ResponseEntity<Void> updateCommentStatus(
             @PathVariable("postId") Integer postId,
             @PathVariable("commentId") Integer commentId
-    ) {
+    ) throws UserPrincipalNotFoundException {
         log.info("[CommentController] 댓글 삭제 시작 -  postId: {}, commentId: {}", postId, commentId);
 
         commentService.softDeleteComment(commentId);

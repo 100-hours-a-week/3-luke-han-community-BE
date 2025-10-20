@@ -42,6 +42,18 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
             "/api/auth/**"
     ).stream().map(patternParser::parse).toList();
 
+    /**
+     * JWT 인가 처리
+     * 1. 헤더에서 acces token 꺼내기
+     * 2. 만료가 안 되었다면 SecurityContextHolder에 인증정보 추가 후 진행
+     * 3. 만료 시 refresh token 유효성검사 후 rtr 진행
+     *
+     * @param request
+     * @param response
+     * @param filterChain
+     * @throws ServletException
+     * @throws IOException
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         log.info("[JwtVerificationFilter] 토큰 검증 시작");
@@ -59,9 +71,9 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
                 log.info("[JwtVerificationFilter] Access token 만료");
 
                 String refreshToken = cookieUtil.getCookie(request, "refresh_token").getValue();
-                handleExpiredAccessToken(response, refreshToken);
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
+                if (handleExpiredAccessToken(response, refreshToken)) {
+                    return;
+                }
             }
         }
 
@@ -100,9 +112,16 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
         }
     }
 
-    private void handleExpiredAccessToken(HttpServletResponse response, String refreshToken) {
+    /**
+     * access token 만료 시 rtr 진행하는 메서드
+     * - access token, refresh token 모두 새로 발급
+     *
+     * @param response
+     * @param refreshToken
+     */
+    private boolean handleExpiredAccessToken(HttpServletResponse response, String refreshToken) {
         if (refreshToken == null) {
-            return;
+            return false;
         }
 
         CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(
@@ -115,10 +134,11 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
 
             response.setHeader(AUTHORIZATION, "Bearer " + tokens.get("access_token"));
             processAccessToken(tokens.get("access_token"), response);
-            return;
+            return true;
         }
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return false;
     }
 
 }

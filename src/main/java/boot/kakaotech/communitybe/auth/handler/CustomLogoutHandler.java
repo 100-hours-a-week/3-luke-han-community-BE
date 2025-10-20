@@ -1,5 +1,6 @@
 package boot.kakaotech.communitybe.auth.handler;
 
+import boot.kakaotech.communitybe.auth.dto.CustomUserDetails;
 import boot.kakaotech.communitybe.auth.service.JwtService;
 import boot.kakaotech.communitybe.util.CookieUtil;
 import jakarta.servlet.http.Cookie;
@@ -33,7 +34,8 @@ public class CustomLogoutHandler implements LogoutHandler {
                 refreshToken = refreshCookie.getValue();
                 cookieUtil.deleteCookie(response, "refresh_token");
 
-                // TODO: redis에 저장된 refreshToken 지우는 로직 구현
+                CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+                jwtService.invalidateRefreshToken(userDetails.getUsername());
 
                 response.setStatus(HttpServletResponse.SC_OK);
             }
