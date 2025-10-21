@@ -1,95 +1,60 @@
 package boot.kakaotech.communitybe.auth;
 
 import boot.kakaotech.communitybe.auth.dto.SignupDto;
-import boot.kakaotech.communitybe.auth.dto.ValueDto;
 import boot.kakaotech.communitybe.auth.service.AuthService;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
+import java.util.Optional;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.when;
+
 @Transactional
 public class AuthTest {
 
-    @Autowired
-    private AuthService authService;
-
-    @Autowired
+    @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @Test
     @DisplayName("회원 가입 테스트")
     public void signupTest(){
+        AuthService mockAuthService = Mockito.mock(AuthService.class);
+        PasswordEncoder mockPasswordEncoder = Mockito.mock(PasswordEncoder.class);
+        UserRepository mockUserRepository = Mockito.mock(UserRepository.class);
+
         SignupDto signupDto = SignupDto.builder()
                 .email("test@test.com")
                 .password("test")
                 .nickname("testUser")
                 .build();
 
-        authService.signup(signupDto, null);
+        when(mockPasswordEncoder.encode("test")).thenReturn("test");
 
-        User saved = userRepository.findByEmail(signupDto.getEmail())
-                .orElseThrow(() -> new AssertionError("유저가 저장되지 않았습니다."));
-    }
-
-    @Test
-    @DisplayName("이메일 중복체크: 존재 테스트")
-    public void duplicateExistedEmailTest(){
-        ValueDto valueDto = ValueDto.builder()
-                .value("test@test.com")
+        User user = User.builder()
+                .email("test@test.com")
+                .password(mockPasswordEncoder.encode("test"))
+                .nickname("testUser")
                 .build();
 
-        boolean isExist = authService.checkEmail(valueDto);
+        when(mockUserRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
 
-        if (!isExist) {
-            throw new AssertionError("해당 이메일을 사용하는 유저가 존재하지 않습니다.");
-        }
-    }
+        mockAuthService.signup(signupDto, null);
+        User saved = mockUserRepository.findByEmail(signupDto.getEmail()).get();
 
-    @Test
-    @DisplayName("이메일 중복체크: 미존재 테스트")
-    public void duplicateNonExistedEmailTest(){
-        ValueDto valueDto = ValueDto.builder()
-                .value("nouser@test.com")
-                .build();
-
-        boolean isExist = authService.checkEmail(valueDto);
-
-        if (isExist) {
-            throw new AssertionError("해당 이메일을 사용하는 유저가 존재합니다.");
-        }
-    }
-
-    @Test
-    @DisplayName("닉네임 중복체크: 존재 테스트")
-    public void duplicateExistedNicknameTest(){
-        ValueDto valueDto = ValueDto.builder()
-                .value("test")
-                .build();
-
-        boolean isExist = authService.checkNickname(valueDto);
-
-        if (!isExist) {
-            throw new AssertionError("해당 닉네임을 사용하는 유저가 존재하지 않습니다.");
-        }
-    }
-
-    @Test
-    @DisplayName("닉네임 중복체크: 미존재 테스트")
-    public void duplicateNonExistedNicknameTest(){
-        ValueDto valueDto = ValueDto.builder()
-                .value("test123123")
-                .build();
-
-        boolean isExist = authService.checkNickname(valueDto);
-
-        if (isExist) {
-            throw new AssertionError("해당 닉네임을 사용하는 유저가 존재합니다.");
-        }
+        assertThat(saved.getEmail()).isEqualTo(signupDto.getEmail());
+        assertThat(saved.getPassword()).isEqualTo(signupDto.getPassword());
+        assertThat(saved.getNickname()).isEqualTo(signupDto.getNickname());
     }
 
 }

@@ -28,25 +28,30 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
     @Override
     public List<PostListWrapper> getPostsUsingFetch(Pageable pageable) {
         List<PostListWrapper> posts = jpaQueryFactory
-                .select(Projections.constructor(PostListWrapper.class,
-                        Projections.constructor(PostListDto.class,
+                .select(Projections.fields(PostListWrapper.class,
+                        Projections.fields(PostListDto.class,
                                 post.id,
                                 post.title,
                                 postLike.count().as("likeCount"),
                                 comment.count().as("commentCount"),
                                 post.viewCount,
                                 post.createdAt)
-                                .as("post"),
-                        Projections.constructor(SimpUserInfo.class,
+                        .as("post"),
+                        Projections.fields(SimpUserInfo.class,
                                 user.id,
                                 user.nickname.as("name"),
                                 user.profileImageUrl)
-                                .as("author")
-                        ))
+                        .as("author")
+                ))
                 .from(post)
                 .join(post.author, user)
                 .leftJoin(post.likes, postLike)
                 .leftJoin(post.comments, comment)
+                .groupBy(
+                        post.id, post.title, post.viewCount, post.createdAt,
+                        user.id, user.nickname, user.profileImageUrl
+                )
+                .orderBy(post.createdAt.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1)
                 .fetch();
@@ -56,6 +61,41 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
 
     @Override
     public PostDetailWrapper getPostById(int postId) {
+        PostDetailWrapper detail = jpaQueryFactory
+                .select(
+                        Projections.fields(PostDetailWrapper.class,
+                                Projections.fields(SimpUserInfo.class,
+                                        user.id,
+                                        user.nickname.as("name"),
+                                        user.profileImageUrl
+                                        ).as("author"),
+                                Projections.fields(PostDetailDto.class,
+                                        post.id,
+                                        post.title,
+                                        post.content,
+                                        postLike.count().as("likeCount"),
+                                        comment.count().as("commentCount"),
+                                        post.viewCount,
+                                        post.createdAt
+                                        ).as("post")
+                        )
+                )
+                .from(post)
+                .join(post.author, user)
+                .leftJoin(post.likes, postLike)
+                .leftJoin(post.comments, comment)
+                .leftJoin(post.images, postImage)
+                .groupBy(
+                        post.id, post.title, post.viewCount, post.createdAt,
+                        user.id, user.nickname, user.profileImageUrl
+                )
+                .where(post.id.eq(postId))
+                .fetchOne();
+
+        return detail;
+    }
+
+    public PostDetailWrapper getPostById12(int postId) {
         PostDetailWrapper postDetail = jpaQueryFactory
                 .select(
                         Projections.constructor(PostDetailWrapper.class,
@@ -67,7 +107,7 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                                 Projections.constructor(PostDetailDto.class,
                                                 post.id,
                                                 post.title,
-                                                Projections.list(postImage.url),
+                                                Projections.list(postImage.imageKey),
                                                 post.content,
                                                 postLike.count().as("likeCount"),
                                                 comment.count().as("commentCount"),

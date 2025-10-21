@@ -92,9 +92,13 @@ public class PostServiceImpl implements PostService {
             return null;
         }
 
-        Integer count = Integer.parseInt(redisTemplate.opsForValue().get(VIEW_COUNT_PREFIX + postId));
-        if (count == null) {
+        String viewCount = redisTemplate.opsForValue().get(VIEW_COUNT_PREFIX + postId);
+
+        Integer count = 0;
+        if (viewCount == null) {
             count = post.getPost().getViewCount();
+        } else {
+            count = Integer.parseInt(viewCount);
         }
 
         redisTemplate.opsForValue().set(

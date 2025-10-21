@@ -39,7 +39,8 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
     private final CookieUtil cookieUtil;
 
     private final List<PathPattern> excludedUrls = Arrays.asList(
-            "/api/auth/**"
+            "/api/auth/**",
+            "/api/**"
     ).stream().map(patternParser::parse).toList();
 
     /**

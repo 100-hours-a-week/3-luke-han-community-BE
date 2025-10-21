@@ -41,9 +41,26 @@ public class SecurityConfig {
 
     @Bean
     UrlBasedCorsConfigurationSource corsConfigurationSource() {
+        System.out.println("@@@@@@@@@@@@@@@@@@@@@@@ frontendUrl: " + frontendUrl);
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(frontendUrl));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PATCH", "DELETE"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Set-Cookie",
+                "Access-Control-Allow-Credentials",
+                "Access-Control-Allow-Origin"
+        ));
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Cookie",
+                "Access-Control-Allow-Credentials",
+                "Access-Control-Allow-Origin"
+        ));
+        configuration.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
@@ -61,11 +78,12 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtVerificationFilter jwtVerificationFilter) throws Exception {
         log.info("[SecurityConfig] 보안 필터 구성 시작");
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(requests -> {
                     requests
                                     .requestMatchers(
-                                            "/"
+                                            "/api/**"
                                     ).permitAll()
                                     .anyRequest().authenticated();
                     log.info("[SecurityConfig] URL 인가 구성 완료");

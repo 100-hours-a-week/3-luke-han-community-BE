@@ -20,9 +20,9 @@ public class PostDetailDto {
 
     private String content;
 
-    private int likeCount;
+    private long likeCount;
 
-    private int commentCount;
+    private long commentCount;
 
     private int viewCount;
 
