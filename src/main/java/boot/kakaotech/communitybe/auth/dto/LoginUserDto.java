@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LoginUserDto {
 
+    private Integer userId;
+
     private String profileImageUrl;
 
 }

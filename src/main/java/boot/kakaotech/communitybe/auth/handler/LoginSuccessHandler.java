@@ -3,6 +3,7 @@ package boot.kakaotech.communitybe.auth.handler;
 import boot.kakaotech.communitybe.auth.dto.CustomUserDetails;
 import boot.kakaotech.communitybe.auth.dto.LoginUserDto;
 import boot.kakaotech.communitybe.auth.service.JwtService;
+import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.util.CookieUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,11 +25,16 @@ import java.io.IOException;
 public class LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtService jwtService;
+    private final S3Service s3Service;
+
     private final CookieUtil cookieUtil;
     private final ObjectMapper objectMapper;
 
     @Value("${frontend.url}")
     private String frontendUrl;
+
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucket;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
@@ -46,7 +52,8 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler {
         response.setContentType("application/json");
         response.getWriter().write(objectMapper.writeValueAsString(
                 LoginUserDto.builder()
-                        .profileImageUrl(user.getProfileImageUrl())
+                        .userId(user.getId())
+                        .profileImageUrl(s3Service.createGETPresignedUrl(bucket, user.getProfileImageUrl()))
                         .build())
         );
     }
