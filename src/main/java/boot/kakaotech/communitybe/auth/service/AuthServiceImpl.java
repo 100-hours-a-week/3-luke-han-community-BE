@@ -9,10 +9,13 @@ import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +27,9 @@ public class AuthServiceImpl implements AuthService {
 
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucket;
+
     /**
      * 회원가입 하는 검증 메서드
      * 1. signup validation 진행
@@ -31,23 +37,27 @@ public class AuthServiceImpl implements AuthService {
      * 3. save
      *
      * @param signupDto
-     * @param file
      */
     @Override
     @Transactional
-    public void signup(SignupDto signupDto, MultipartFile file) {
+    public String signup(SignupDto signupDto) {
         log.info("[AuthService] 회원가입 시작");
 
         validateSignup(signupDto);
+        String key = "user:" + signupDto.getEmail() + ":" + UUID.randomUUID().toString() + ":" + signupDto.getProfileImageName();
+
         User user = User.builder()
                 .email(signupDto.getEmail())
                 .password(passwordEncoder.encode(signupDto.getPassword()))
                 .nickname(signupDto.getNickname())
+                .profileImageUrl(key)
                 .build();
 
         userRepository.save(user);
-        // TODO: presigned url 발급 처리
+        String presignedUrl = s3Service.createPUTPresignedUrl(bucket, key);
+
         log.info("[AuthService] 회원가입 성공");
+        return presignedUrl;
     }
 
     /**

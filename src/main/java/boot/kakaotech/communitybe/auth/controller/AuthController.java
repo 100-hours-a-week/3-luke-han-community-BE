@@ -19,15 +19,14 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/signup")
-    public ResponseEntity<Void> signup(
-            @RequestPart("data") SignupDto signupDto,
-            @RequestPart(value = "image", required = false) MultipartFile file) {
+    public ResponseEntity<String> signup(
+            @RequestPart("data") SignupDto signupDto) {
         log.info("[AuthController] 회원가입 요청 시작");
 
-        authService.signup(signupDto, file);
+        String url = authService.signup(signupDto);
         log.info("[AuthController] 회원가입 성공");
 
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(url);
     }
 
     @PostMapping("/duplications/email")

@@ -6,7 +6,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface AuthService {
 
-    void signup(SignupDto signupDto, MultipartFile file);
+    String signup(SignupDto signupDto);
 
     boolean checkEmail(ValueDto valueDto);
 

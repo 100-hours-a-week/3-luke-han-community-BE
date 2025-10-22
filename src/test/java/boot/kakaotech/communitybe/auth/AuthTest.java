@@ -49,7 +49,7 @@ public class AuthTest {
 
         when(mockUserRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
 
-        mockAuthService.signup(signupDto, null);
+        mockAuthService.signup(signupDto);
         User saved = mockUserRepository.findByEmail(signupDto.getEmail()).get();
 
         assertThat(saved.getEmail()).isEqualTo(signupDto.getEmail());
