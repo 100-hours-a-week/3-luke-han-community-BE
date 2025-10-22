@@ -95,36 +95,14 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
         return detail;
     }
 
-    public PostDetailWrapper getPostById12(int postId) {
-        PostDetailWrapper postDetail = jpaQueryFactory
-                .select(
-                        Projections.constructor(PostDetailWrapper.class,
-                                Projections.constructor(SimpUserInfo.class,
-                                                user.id,
-                                                user.nickname.as("name"),
-                                                user.profileImageUrl)
-                                        .as("author"),
-                                Projections.constructor(PostDetailDto.class,
-                                                post.id,
-                                                post.title,
-                                                Projections.list(postImage.imageKey),
-                                                post.content,
-                                                postLike.count().as("likeCount"),
-                                                comment.count().as("commentCount"),
-                                                post.viewCount,
-                                                post.createdAt)
-                                        .as("post")
-                        )
-                )
-                .from(post)
-                .join(post.author, user)
-                .leftJoin(post.likes, postLike)
-                .leftJoin(post.comments, comment)
-                .leftJoin(post.images, postImage)
-                .where(post.id.eq(postId))
-                .fetchOne();
+    public List<String> getImages(int postId) {
+        List<String> images = jpaQueryFactory
+                .select(postImage.imageKey)
+                .from(postImage)
+                .where(postImage.post.id.eq(postId))
+                .fetch();
 
-        return postDetail;
+        return images;
     }
 
 }

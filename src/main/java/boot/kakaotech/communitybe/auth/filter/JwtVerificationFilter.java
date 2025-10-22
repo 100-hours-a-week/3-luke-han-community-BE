@@ -39,8 +39,8 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
     private final CookieUtil cookieUtil;
 
     private final List<PathPattern> excludedUrls = Arrays.asList(
-            "/api/auth/**",
-            "/api/**"
+            "/api/auth/**"
+//            "/api/**"
     ).stream().map(patternParser::parse).toList();
 
     /**
@@ -72,7 +72,7 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
                 log.info("[JwtVerificationFilter] Access token 만료");
 
                 String refreshToken = cookieUtil.getCookie(request, "refresh_token").getValue();
-                if (handleExpiredAccessToken(response, refreshToken)) {
+                if (!handleExpiredAccessToken(response, refreshToken)) {
                     return;
                 }
             }
@@ -122,6 +122,7 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
      */
     private boolean handleExpiredAccessToken(HttpServletResponse response, String refreshToken) {
         if (refreshToken == null) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return false;
         }
 

@@ -12,4 +12,6 @@ public interface CustomPostRepository {
 
     PostDetailWrapper getPostById(int postId);
 
+    List<String> getImages(int postId);
+
 }

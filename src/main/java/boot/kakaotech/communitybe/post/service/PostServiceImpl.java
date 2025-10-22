@@ -2,8 +2,10 @@ package boot.kakaotech.communitybe.post.service;
 
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.post.dto.CreatePostDto;
+import boot.kakaotech.communitybe.post.dto.CreatedPostDto;
 import boot.kakaotech.communitybe.post.dto.PostDetailWrapper;
 import boot.kakaotech.communitybe.post.dto.PostListWrapper;
 import boot.kakaotech.communitybe.post.entity.Post;
@@ -13,6 +15,7 @@ import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -22,12 +25,16 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class PostServiceImpl implements PostService {
+
+    private final S3Service s3Service;
 
     private final PostRepository postRepository;
 
@@ -35,6 +42,9 @@ public class PostServiceImpl implements PostService {
 
     private final RedisTemplate<String, String> redisTemplate;
     private static final String VIEW_COUNT_PREFIX = "post_view:";
+
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucket;
 
     /**
      * 게시글 목록 조회
@@ -92,6 +102,12 @@ public class PostServiceImpl implements PostService {
             return null;
         }
 
+        List<String> images = postRepository.getImages(postId);
+        images.stream().forEach(image -> {
+            String presignedUrl = s3Service.createGETPresignedUrl(bucket, image);
+            post.getPost().getImages().add(presignedUrl);
+        });
+
         String viewCount = redisTemplate.opsForValue().get(VIEW_COUNT_PREFIX + postId);
 
         Integer count = 0;
@@ -124,7 +140,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     @Transactional
-    public Integer savePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
+    public CreatedPostDto savePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 생성 시작");
 
         User author = userUtil.getCurrentUser();
@@ -136,11 +152,21 @@ public class PostServiceImpl implements PostService {
                 .viewCount(0)
                 .build();
 
-        List<PostImage> imagesList = null;
-        // TODO: presigned url 발급받는 로직 추가
+        List<PostImage> imagesList = new ArrayList<>();
+        List<String> presignedUrls = new ArrayList<>();
+        images.stream().forEach(image -> {
+            String imageKey = "post/" + post.getId() + "/" + UUID.randomUUID().toString() + "/" + image;
+            imagesList.add(PostImage.builder().post(post).imageKey(imageKey).build());
+            presignedUrls.add(s3Service.createPUTPresignedUrl(bucket, imageKey));
+        });
 
+        post.setImages(imagesList);
         postRepository.save(post);
-        return post.getId();
+
+        return CreatedPostDto.builder()
+                .postId(post.getId())
+                .presignedUrls(presignedUrls)
+                .build();
     }
 
     /**
