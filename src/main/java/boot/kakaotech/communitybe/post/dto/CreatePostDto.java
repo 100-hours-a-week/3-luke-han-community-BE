@@ -17,4 +17,6 @@ public class CreatePostDto {
 
     private String content;
 
+    private boolean isImageChanged;
+
 }

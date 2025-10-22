@@ -4,6 +4,7 @@ import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.post.dto.CreatePostDto;
 import boot.kakaotech.communitybe.post.dto.PostDetailWrapper;
 import boot.kakaotech.communitybe.post.dto.PostListWrapper;
+import boot.kakaotech.communitybe.post.dto.SavedPostDto;
 import boot.kakaotech.communitybe.post.service.PostService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,26 +44,26 @@ public class PostController {
     }
 
     @PostMapping
-    public ResponseEntity<Integer> savePost(@RequestBody CreatePostDto createPostDto, @RequestBody List<String> images) throws UserPrincipalNotFoundException {
+    public ResponseEntity<SavedPostDto> savePost(@RequestBody CreatePostDto createPostDto, @RequestBody List<String> images) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 생성 시작");
 
-        Integer postId = postService.savePost(createPostDto, images);
+        SavedPostDto dto = postService.savePost(createPostDto, images);
         log.info("[PostController] 게시글 생성 성공");
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(postId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
     @PatchMapping("/{postId}")
-    public ResponseEntity<Void> updatePost(
+    public ResponseEntity<SavedPostDto> updatePost(
             @PathVariable("postId") Integer postId,
             @RequestBody CreatePostDto createPostDto,
             @RequestBody List<String> images) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 수정 시작");
 
-        postService.updatePost(createPostDto, images);
+        SavedPostDto dto = postService.updatePost(createPostDto, images);
         log.info("[PostController] 게시글 수정 성공");
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok().body(dto);
     }
 
     @PatchMapping("/{postId}/status")

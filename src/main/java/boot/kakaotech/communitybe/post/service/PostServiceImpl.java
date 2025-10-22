@@ -5,7 +5,7 @@ import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.post.dto.CreatePostDto;
-import boot.kakaotech.communitybe.post.dto.CreatedPostDto;
+import boot.kakaotech.communitybe.post.dto.SavedPostDto;
 import boot.kakaotech.communitybe.post.dto.PostDetailWrapper;
 import boot.kakaotech.communitybe.post.dto.PostListWrapper;
 import boot.kakaotech.communitybe.post.entity.Post;
@@ -21,7 +21,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.time.LocalDateTime;
@@ -140,7 +139,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     @Transactional
-    public CreatedPostDto savePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
+    public SavedPostDto savePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 생성 시작");
 
         User author = userUtil.getCurrentUser();
@@ -154,6 +153,8 @@ public class PostServiceImpl implements PostService {
 
         List<PostImage> imagesList = new ArrayList<>();
         List<String> presignedUrls = new ArrayList<>();
+
+        postRepository.saveAndFlush(post);
         images.stream().forEach(image -> {
             String imageKey = "post:" + post.getId() + ":" + UUID.randomUUID().toString() + ":" + image;
             imagesList.add(PostImage.builder().post(post).imageKey(imageKey).build());
@@ -161,9 +162,8 @@ public class PostServiceImpl implements PostService {
         });
 
         post.setImages(imagesList);
-        postRepository.save(post);
 
-        return CreatedPostDto.builder()
+        return SavedPostDto.builder()
                 .postId(post.getId())
                 .presignedUrls(presignedUrls)
                 .build();
@@ -184,7 +184,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     @Transactional
-    public void updatePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
+    public SavedPostDto updatePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 수정 시작");
 
         User user = userUtil.getCurrentUser();
@@ -209,11 +209,30 @@ public class PostServiceImpl implements PostService {
             post.setContent(content);
         }
 
-        if (images != null) {
-            // TODO: 이미지 변경 확인 후 postImage 전체 수정하기
+        List<String> presignedUrls = new ArrayList<>();
+        if (createPostDto.isImageChanged()) {
+            post.clearImages();
+
+            if (images != null && !images.isEmpty()) {
+                for (String originalFileName : images) {
+                    if (originalFileName != null || originalFileName.isBlank()) {
+                        continue;
+                    }
+
+                    String key = "post:" + post.getId() + ":" + UUID.randomUUID().toString() + ":" + originalFileName;
+
+                    PostImage newImage = PostImage.builder().post(post).imageKey(key).build();
+                    post.addImage(newImage);
+
+                    presignedUrls.add(s3Service.createPUTPresignedUrl(bucket, key));
+                }
+            }
         }
 
-        postRepository.save(post);
+        return SavedPostDto.builder()
+                .postId(post.getId())
+                .presignedUrls(presignedUrls)
+                .build();
     }
 
     /**

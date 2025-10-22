@@ -49,4 +49,17 @@ public class Post {
     @OneToMany(mappedBy = "post",  cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments;
 
+    public void clearImages() {
+        for (PostImage postImage : images) {
+            postImage.setPost(null);
+        }
+
+        images.clear();
+    }
+
+    public void addImage(PostImage postImage) {
+        images.add(postImage);
+        postImage.setPost(this);
+    }
+
 }
