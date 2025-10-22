@@ -1,5 +1,7 @@
 package boot.kakaotech.communitybe.post.service;
 
+import boot.kakaotech.communitybe.comment.dto.CommentDto;
+import boot.kakaotech.communitybe.comment.repository.CommentRepository;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.common.s3.service.S3Service;
@@ -36,6 +38,7 @@ public class PostServiceImpl implements PostService {
     private final S3Service s3Service;
 
     private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
 
     private final UserUtil userUtil;
 
@@ -121,6 +124,10 @@ public class PostServiceImpl implements PostService {
                 Integer.toString(count + 1)
         );
         post.getPost().setViewCount(count + 1);
+
+        Pageable pageable = PageRequest.of(0, 10);
+        List<CommentDto> comments = commentRepository.getComments(postId, 0, pageable);
+        post.setComments(comments);
 
         return post;
     }

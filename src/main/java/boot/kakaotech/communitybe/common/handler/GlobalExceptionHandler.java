@@ -1,5 +1,6 @@
 package boot.kakaotech.communitybe.common.handler;
 
+import boot.kakaotech.communitybe.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,20 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<?> handleBusinessException(BusinessException e) {
+        log.error("[BusinessException] {}", e.getMessage());
+        String errorMsg = e.getMessage();
+
+        return ResponseEntity
+                .status(e.getErrorCode().getStatus())
+                .body(new ErrorResponse(
+                        e.getErrorCode().getStatus().value(),
+                        errorMsg,
+                        LocalDateTime.now()
+                ));
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
@@ -52,6 +67,20 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(
                         400,
+                        errorMsg,
+                        LocalDateTime.now()
+                ));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(Exception e) {
+        log.error("[Exception] {}", e.getMessage());
+        String errorMsg = e.getMessage();
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(
+                        500,
                         errorMsg,
                         LocalDateTime.now()
                 ));
