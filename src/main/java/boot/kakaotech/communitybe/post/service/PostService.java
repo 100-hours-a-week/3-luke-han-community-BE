@@ -15,9 +15,9 @@ public interface PostService {
 
     PostDetailWrapper getPost(int postId);
 
-    SavedPostDto savePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException;
+    SavedPostDto savePost(CreatePostDto createPostDto) throws UserPrincipalNotFoundException;
 
-    SavedPostDto updatePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException;
+    SavedPostDto updatePost(CreatePostDto createPostDto) throws UserPrincipalNotFoundException;
 
     void softDeletePost(int postId) throws UserPrincipalNotFoundException;
 

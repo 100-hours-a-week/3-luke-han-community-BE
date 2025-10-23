@@ -23,14 +23,10 @@ public class S3Config {
     @Value("${cloud.aws.region.static}")
     private String region;
 
-    @Value("${cloud.aws.s3.endpoint}")
-    private String endpoint;
-
     @Bean
     public S3Client s3Client() {
         return S3Client.builder()
                 .region(Region.of(region))
-                .endpointOverride(URI.create(endpoint))
                 .credentialsProvider(
                         StaticCredentialsProvider.create(
                                 AwsBasicCredentials.create(accessKey, secretKey)

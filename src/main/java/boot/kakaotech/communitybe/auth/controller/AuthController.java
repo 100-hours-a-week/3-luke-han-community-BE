@@ -20,7 +20,7 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<String> signup(
-            @RequestPart("data") SignupDto signupDto) {
+            @RequestBody SignupDto signupDto) {
         log.info("[AuthController] 회원가입 요청 시작");
 
         String url = authService.signup(signupDto);

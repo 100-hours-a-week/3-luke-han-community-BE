@@ -13,11 +13,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 
 @Component
 @RequiredArgsConstructor
@@ -29,6 +31,11 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final CookieUtil cookieUtil;
     private final ObjectMapper objectMapper;
+    private final RedisTemplate<String, String> redisTemplate;
+    private static final String REFRESH_TOKEN_PREFIX = "RT:";
+
+    @Value("${jwt.expire_time.refresh_token}")
+    private long refreshTokenExpireTime;
 
     @Value("${frontend.url}")
     private String frontendUrl;
@@ -45,6 +52,11 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
+        redisTemplate.opsForValue().set(
+                REFRESH_TOKEN_PREFIX + user.getEmail(),
+                refreshToken,
+                Duration.ofMillis(refreshTokenExpireTime)
+        );
         cookieUtil.addCookie(response, "refresh_token", refreshToken, (int) jwtService.getRefreshTokenExpireTime() / 1000);
 
         response.setHeader("Authorization", "Bearer " + accessToken);

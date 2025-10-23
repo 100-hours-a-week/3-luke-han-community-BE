@@ -15,6 +15,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.time.Duration;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -76,6 +77,7 @@ public class JwtServiceImpl implements JwtService {
         }
 
         String storedToken = redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + user.getEmail());
+        System.out.println("@@@@@@@@@@@@@@@@ storedToken: " + storedToken);
         if (storedToken == null || !storedToken.equals(refreshToken)) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
@@ -148,6 +150,12 @@ public class JwtServiceImpl implements JwtService {
 
         String newAccessToken = generateToken(user, accessTokenExpireTime);
         String newRefreshToken = generateToken(user, refreshTokenExpireTime);
+
+        redisTemplate.opsForValue().set(
+                REFRESH_TOKEN_PREFIX + user.getEmail(),
+                newRefreshToken,
+                Duration.ofMillis(accessTokenExpireTime)
+        );
 
         Map<String, String> tokens = new HashMap<>();
         tokens.put("access_token", newAccessToken);

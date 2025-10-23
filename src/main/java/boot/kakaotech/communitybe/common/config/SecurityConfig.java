@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -82,7 +83,9 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(requests -> {
+                    log.info("[SecurityConfig] requests: {}", requests.toString());
                     requests
+                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                     .requestMatchers(
                                             "/api/auth/**"
                                     ).permitAll()
@@ -91,15 +94,19 @@ public class SecurityConfig {
                 })
                 .addFilterBefore(jwtVerificationFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(e -> {
-                    e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));
+                    e.accessDeniedHandler((request, response, accessDeniedException) -> {
+                        log.warn("[SecurityConfig] 접근 거부 처리: {}",  accessDeniedException.getMessage());
+                        response.setStatus(403);
+                    })
+                    .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));
                 })
                 .authenticationProvider(authenticationProvider(userDetailsService, passwordEncoder))
                 .formLogin(form -> {
+                    log.info("[SecurityConfig] 로그인 요청 시작");
                     form
                             .loginProcessingUrl("/api/auth/signin")
                             .successHandler(loginSuccessHandler)
                             .failureHandler(loginFailureHandler);
-                    ;
                 })
                 .logout(logout -> {
                     logout

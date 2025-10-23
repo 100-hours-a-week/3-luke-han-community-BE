@@ -29,7 +29,7 @@ public class CookieUtil {
         log.info("[CookieUtil] 쿠키 생성 시작 - 이름: {}, 만료시간: {}", name, maxAge);
 
         ResponseCookie cookie = ResponseCookie.from(name, value).maxAge(maxAge)
-                .path("/api")
+                .path("/")
                 .sameSite("Lax")
                 .httpOnly(true)
                 .secure(false)
@@ -72,7 +72,7 @@ public class CookieUtil {
         log.info("[CookieUtil] 쿠키 삭제 시작 - 이름: {}", name);
 
         ResponseCookie cookie = ResponseCookie.from(name, "")
-                .path("/api")
+                .path("/")
                 .sameSite("Lax")
                 .httpOnly(true)
                 .secure(false)

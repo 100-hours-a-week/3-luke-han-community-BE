@@ -44,10 +44,10 @@ public class PostController {
     }
 
     @PostMapping
-    public ResponseEntity<SavedPostDto> savePost(@RequestBody CreatePostDto createPostDto, @RequestBody List<String> images) throws UserPrincipalNotFoundException {
+    public ResponseEntity<SavedPostDto> savePost(@RequestBody CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 생성 시작");
 
-        SavedPostDto dto = postService.savePost(createPostDto, images);
+        SavedPostDto dto = postService.savePost(createPostDto);
         log.info("[PostController] 게시글 생성 성공");
 
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
@@ -60,7 +60,8 @@ public class PostController {
             @RequestBody List<String> images) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 수정 시작");
 
-        SavedPostDto dto = postService.updatePost(createPostDto, images);
+        createPostDto.setId(postId);
+        SavedPostDto dto = postService.updatePost(createPostDto);
         log.info("[PostController] 게시글 수정 성공");
 
         return ResponseEntity.ok().body(dto);

@@ -105,6 +105,7 @@ public class PostServiceImpl implements PostService {
         }
 
         List<String> images = postRepository.getImages(postId);
+        post.getPost().setImages(new ArrayList<>());
         images.stream().forEach(image -> {
             String presignedUrl = s3Service.createGETPresignedUrl(bucket, image);
             post.getPost().getImages().add(presignedUrl);
@@ -140,13 +141,12 @@ public class PostServiceImpl implements PostService {
      * 4. 저장
      *
      * @param createPostDto
-     * @param images
      * @return
      * @throws UserPrincipalNotFoundException
      */
     @Override
     @Transactional
-    public SavedPostDto savePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
+    public SavedPostDto savePost(CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 생성 시작");
 
         User author = userUtil.getCurrentUser();
@@ -156,10 +156,12 @@ public class PostServiceImpl implements PostService {
                 .title(createPostDto.getTitle())
                 .content(createPostDto.getContent())
                 .viewCount(0)
+                .createdAt(LocalDateTime.now())
                 .build();
 
         List<PostImage> imagesList = new ArrayList<>();
         List<String> presignedUrls = new ArrayList<>();
+        List<String> images = createPostDto.getImages();
 
         postRepository.saveAndFlush(post);
         images.stream().forEach(image -> {
@@ -186,12 +188,11 @@ public class PostServiceImpl implements PostService {
      * 6. 저장
      *
      * @param createPostDto
-     * @param images
      * @throws UserPrincipalNotFoundException
      */
     @Override
     @Transactional
-    public SavedPostDto updatePost(CreatePostDto createPostDto, List<String> images) throws UserPrincipalNotFoundException {
+    public SavedPostDto updatePost(CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 수정 시작");
 
         User user = userUtil.getCurrentUser();
@@ -217,7 +218,8 @@ public class PostServiceImpl implements PostService {
         }
 
         List<String> presignedUrls = new ArrayList<>();
-        if (createPostDto.isImageChanged()) {
+        List<String> images = createPostDto.getImages();
+        if (createPostDto.getIsImageChanged()) {
             post.clearImages();
 
             if (images != null && !images.isEmpty()) {

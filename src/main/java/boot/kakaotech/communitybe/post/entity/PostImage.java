@@ -20,7 +20,7 @@ public class PostImage {
     @JoinColumn(name = "post_id")
     private Post post;
 
-    @Column(nullable = false)
+    @Column(name = "image_key", nullable = false)
     private String imageKey;
 
 }

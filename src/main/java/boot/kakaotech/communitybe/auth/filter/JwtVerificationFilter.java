@@ -3,6 +3,8 @@ package boot.kakaotech.communitybe.auth.filter;
 import boot.kakaotech.communitybe.auth.dto.CustomUserDetails;
 import boot.kakaotech.communitybe.auth.service.CustomUserDetailsService;
 import boot.kakaotech.communitybe.auth.service.JwtService;
+import boot.kakaotech.communitybe.common.exception.BusinessException;
+import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.util.CookieUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
@@ -58,6 +60,10 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         log.info("[JwtVerificationFilter] 토큰 검증 시작");
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String authHeader = request.getHeader(AUTHORIZATION);
         String accessToken = null;
@@ -79,7 +85,9 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
         }
 
         log.info("[JwtVerificationFilter] 토큰 검증 성공");
+        log.info("[JwtVerificationFilter] start {} {}", request.getMethod(), request.getRequestURI());
         filterChain.doFilter(request, response);
+        log.info("[JwtVerificationFilter] end {} {} {}", request.getMethod(), request.getRequestURI(),  response.getStatus());
     }
 
     @Override

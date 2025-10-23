@@ -33,7 +33,7 @@ public class User {
     @Column(columnDefinition = "TIMESTAMP", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(columnDefinition = "TIMESTAMP", nullable = false)
+    @Column(columnDefinition = "TIMESTAMP")
     private LocalDateTime deletedAt;
 
 }
