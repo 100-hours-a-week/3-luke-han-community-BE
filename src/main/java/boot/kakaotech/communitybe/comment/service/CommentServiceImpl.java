@@ -7,6 +7,7 @@ import boot.kakaotech.communitybe.comment.entity.Comment;
 import boot.kakaotech.communitybe.comment.repository.CommentRepository;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.post.entity.Post;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
@@ -14,6 +15,7 @@ import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,10 @@ public class CommentServiceImpl implements CommentService {
     private final PostRepository postRepository;
 
     private final UserUtil userUtil;
+    private final S3Service s3Service;
+
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucket;
 
     /**
      * 댓글 조회
@@ -57,6 +63,10 @@ public class CommentServiceImpl implements CommentService {
             return null;
         }
 
+        comments.forEach(comment -> {
+            String profileImageUrl = comment.getProfileImageUrl();
+            comment.setProfileImageUrl(s3Service.createGETPresignedUrl(bucket, profileImageUrl));
+        });
         boolean hasNextCursor = comments.size() > size;
         Integer nextCursor = hasNextCursor ? comments.getLast().getId() : null;
 
@@ -82,7 +92,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public Integer addComment(Integer postId, CreateCommentDto dto) throws UserPrincipalNotFoundException {
-        log.info("[CommentService] 댓글 생성 시작");
+        log.info("[CommentService] 댓글 생성 시작, content: {}", dto.getContent());
 
         Integer parentId = dto.getParentId();
         Comment parent = commentRepository.findById(parentId == null ? 0 : parentId).orElse(null);
@@ -95,6 +105,7 @@ public class CommentServiceImpl implements CommentService {
                 .user(user)
                 .depth(parent == null ? 0 : parent.getDepth() + 1)
                 .content(dto.getContent())
+                .createdAt(LocalDateTime.now())
                 .build();
 
         commentRepository.save(comment);

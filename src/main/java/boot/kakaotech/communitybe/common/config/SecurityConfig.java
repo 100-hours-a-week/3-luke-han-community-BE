@@ -87,7 +87,8 @@ public class SecurityConfig {
                     requests
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                     .requestMatchers(
-                                            "/api/auth/**"
+                                            "/api/auth/**",
+                                            "/terms"
                                     ).permitAll()
                                     .anyRequest().authenticated();
                     log.info("[SecurityConfig] URL 인가 구성 완료");

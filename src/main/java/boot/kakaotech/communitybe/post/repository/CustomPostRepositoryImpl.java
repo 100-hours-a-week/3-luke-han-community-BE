@@ -83,8 +83,8 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                 .from(post)
                 .join(post.author, user)
                 .leftJoin(post.likes, postLike)
-                .leftJoin(post.comments, comment)
                 .leftJoin(post.images, postImage)
+                .leftJoin(post.comments, comment)
                 .groupBy(
                         post.id, post.title, post.viewCount, post.createdAt,
                         user.id, user.nickname, user.profileImageUrl

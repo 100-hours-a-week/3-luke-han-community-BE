@@ -111,6 +111,11 @@ public class PostServiceImpl implements PostService {
             post.getPost().getImages().add(presignedUrl);
         });
 
+        String authorProfile = post.getAuthor().getProfileImageUrl();
+        post.getAuthor().setProfileImageUrl(
+                s3Service.createGETPresignedUrl(bucket, authorProfile)
+        );
+
         String viewCount = redisTemplate.opsForValue().get(VIEW_COUNT_PREFIX + postId);
 
         Integer count = 0;
@@ -128,6 +133,10 @@ public class PostServiceImpl implements PostService {
 
         Pageable pageable = PageRequest.of(0, 10);
         List<CommentDto> comments = commentRepository.getComments(postId, 0, pageable);
+        comments.stream().forEach(comment -> {
+            String profileImageUrl = comment.getProfileImageUrl();
+            comment.setProfileImageUrl(s3Service.createGETPresignedUrl(bucket, profileImageUrl));
+        });
         post.setComments(comments);
 
         return post;
