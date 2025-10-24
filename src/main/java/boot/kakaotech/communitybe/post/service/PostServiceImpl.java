@@ -165,7 +165,7 @@ public class PostServiceImpl implements PostService {
 
         postRepository.saveAndFlush(post);
         images.stream().forEach(image -> {
-            String imageKey = "post:" + post.getId() + ":" + UUID.randomUUID().toString() + ":" + image;
+            String imageKey = "post:" + post.getId() + ":" + UUID.randomUUID() + ":" + image;
             imagesList.add(PostImage.builder().post(post).imageKey(imageKey).build());
             presignedUrls.add(s3Service.createPUTPresignedUrl(bucket, imageKey));
         });

@@ -65,6 +65,7 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler {
         response.getWriter().write(objectMapper.writeValueAsString(
                 LoginUserDto.builder()
                         .userId(user.getId())
+                        .nickname(user.getNickname())
                         .profileImageUrl(s3Service.createGETPresignedUrl(bucket, user.getProfileImageUrl()))
                         .build())
         );

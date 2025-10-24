@@ -13,6 +13,8 @@ public class LoginUserDto {
 
     private Integer userId;
 
+    private String nickname;
+
     private String profileImageUrl;
 
 }

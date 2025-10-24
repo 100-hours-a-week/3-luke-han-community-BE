@@ -32,7 +32,7 @@ public class CustomCommentRepositoryImpl implements CustomCommentRepository {
                         comment.depth,
                         comment.createdAt))
                 .from(comment)
-                .join(user)
+                .join(user).on(comment.user.id.eq(user.id))
                 .join(post).on(comment.post.eq(post))
                 .where(comment.post.id.eq(postId),
                         comment.parentComment.id.eq(parentId))

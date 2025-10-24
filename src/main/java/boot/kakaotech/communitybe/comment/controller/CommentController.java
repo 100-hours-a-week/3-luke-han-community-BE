@@ -21,7 +21,7 @@ public class CommentController {
 
     private final CommentService commentService;
 
-    @GetMapping("/{postId}/comments")
+    @GetMapping("/posts/{postId}/comments")
     public ResponseEntity<CursorPage<CommentDto>> getComments(
             @PathVariable("postId") Integer postId,
             @RequestParam("pid") Integer parentId,
@@ -36,7 +36,7 @@ public class CommentController {
         return comments != null ? ResponseEntity.ok(comments) : ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/post/{postId}/comments")
+    @PostMapping("/posts/{postId}/comments")
     public ResponseEntity<Integer> addComment(@PathVariable("postId") Integer postId, @RequestBody CreateCommentDto dto) throws UserPrincipalNotFoundException {
         log.info("[CommentController] 댓글 생성 시작 - postId: {}", postId);
 
@@ -46,7 +46,7 @@ public class CommentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(commentId);
     }
 
-    @PatchMapping("/post/{postId}/comments/{commentId}")
+    @PatchMapping("/posts/{postId}/comments/{commentId}")
     public ResponseEntity<Void> updateComment(
             @PathVariable("postId") Integer postId,
             @PathVariable("commentId") Integer commentId,
@@ -60,7 +60,7 @@ public class CommentController {
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping("/post/{postId}/comments/{commentId}/status")
+    @PatchMapping("/posts/{postId}/comments/{commentId}/status")
     public ResponseEntity<Void> updateCommentStatus(
             @PathVariable("postId") Integer postId,
             @PathVariable("commentId") Integer commentId
