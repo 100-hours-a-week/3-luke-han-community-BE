@@ -56,8 +56,8 @@ public class PostController {
     @PatchMapping("/{postId}")
     public ResponseEntity<SavedPostDto> updatePost(
             @PathVariable("postId") Integer postId,
-            @RequestBody CreatePostDto createPostDto,
-            @RequestBody List<String> images) throws UserPrincipalNotFoundException {
+            @RequestBody CreatePostDto createPostDto
+    ) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 수정 시작");
 
         createPostDto.setId(postId);

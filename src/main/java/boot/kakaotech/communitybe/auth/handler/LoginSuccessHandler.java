@@ -57,6 +57,8 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler {
                 refreshToken,
                 Duration.ofMillis(refreshTokenExpireTime)
         );
+
+        log.info("[LoginSuccessHandler] refreshToken expiration time : {}", (int) jwtService.getRefreshTokenExpireTime() / 1000);
         cookieUtil.addCookie(response, "refresh_token", refreshToken, (int) jwtService.getRefreshTokenExpireTime() / 1000);
 
         response.setHeader("Authorization", "Bearer " + accessToken);

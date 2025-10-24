@@ -28,7 +28,7 @@ public class CookieUtil {
     public void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
         log.info("[CookieUtil] 쿠키 생성 시작 - 이름: {}, 만료시간: {}", name, maxAge);
 
-        ResponseCookie cookie = ResponseCookie.from(name, value).maxAge(maxAge)
+        ResponseCookie cookie = ResponseCookie.from(name, value)
                 .path("/")
                 .sameSite("Lax")
                 .httpOnly(true)

@@ -154,7 +154,7 @@ public class JwtServiceImpl implements JwtService {
         redisTemplate.opsForValue().set(
                 REFRESH_TOKEN_PREFIX + user.getEmail(),
                 newRefreshToken,
-                Duration.ofMillis(accessTokenExpireTime)
+                Duration.ofMillis(refreshTokenExpireTime)
         );
 
         Map<String, String> tokens = new HashMap<>();

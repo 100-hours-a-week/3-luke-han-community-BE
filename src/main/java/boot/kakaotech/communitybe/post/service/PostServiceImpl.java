@@ -233,7 +233,7 @@ public class PostServiceImpl implements PostService {
 
             if (images != null && !images.isEmpty()) {
                 for (String originalFileName : images) {
-                    if (originalFileName != null || originalFileName.isBlank()) {
+                    if (originalFileName == null || originalFileName.isBlank()) {
                         continue;
                     }
 
