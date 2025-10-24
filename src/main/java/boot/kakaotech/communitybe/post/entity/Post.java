@@ -62,4 +62,9 @@ public class Post {
         postImage.setPost(this);
     }
 
+    public void likePost(PostLike postLike) {
+        likes.add(postLike);
+        postLike.setPost(this);
+    }
+
 }

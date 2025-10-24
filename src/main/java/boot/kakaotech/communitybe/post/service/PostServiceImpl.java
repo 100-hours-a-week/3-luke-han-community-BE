@@ -12,6 +12,7 @@ import boot.kakaotech.communitybe.post.dto.PostDetailWrapper;
 import boot.kakaotech.communitybe.post.dto.PostListWrapper;
 import boot.kakaotech.communitybe.post.entity.Post;
 import boot.kakaotech.communitybe.post.entity.PostImage;
+import boot.kakaotech.communitybe.post.entity.PostLike;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.util.UserUtil;
@@ -76,6 +77,12 @@ public class PostServiceImpl implements PostService {
         if (hasNextCursor) {
             posts.removeLast();
         }
+
+        posts.stream().forEach(post -> {
+            String profileImageUrl = post.getAuthor().getProfileImageUrl();
+
+            post.getAuthor().setProfileImageUrl(s3Service.createGETPresignedUrl(bucket, profileImageUrl));
+        });
 
         return CursorPage.<PostListWrapper>builder()
                 .list(posts)
@@ -280,6 +287,20 @@ public class PostServiceImpl implements PostService {
 
         post.setDeletedAt(LocalDateTime.now());
         postRepository.save(post);
+    }
+
+    @Override
+    @Transactional
+    public void addPostLike(int postId) throws UserPrincipalNotFoundException {
+        log.info("[PostService] 게시글 좋아요 시작");
+
+        User user = userUtil.getCurrentUser();
+        Post post = postRepository.findById(postId).orElse(null);
+        if (post == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        post.likePost(PostLike.builder().user(user).post(post).build());
     }
 
 }

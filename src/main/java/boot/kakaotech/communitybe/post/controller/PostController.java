@@ -77,4 +77,11 @@ public class PostController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/{postId}/likes")
+    public ResponseEntity<Void> likePost(@PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
+        log.info("[PostController] 게시글 좋아요 시작 - postId: {}", postId);
+
+        return ResponseEntity.created().build();
+    }
+
 }

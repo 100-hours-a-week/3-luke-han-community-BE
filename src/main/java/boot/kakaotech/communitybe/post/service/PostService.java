@@ -21,4 +21,6 @@ public interface PostService {
 
     void softDeletePost(int postId) throws UserPrincipalNotFoundException;
 
+    void addPostLike(int postId) throws UserPrincipalNotFoundException;
+
 }
