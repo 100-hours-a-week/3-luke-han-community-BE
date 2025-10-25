@@ -8,7 +8,7 @@ import java.nio.file.attribute.UserPrincipalNotFoundException;
 
 public interface UserService {
 
-    void updateUserInfo(SimpUserInfo userInfo) throws UserPrincipalNotFoundException;
+    String updateUserInfo(SimpUserInfo userInfo) throws UserPrincipalNotFoundException;
 
     void updatePassword(PasswordDto password) throws UserPrincipalNotFoundException;
 

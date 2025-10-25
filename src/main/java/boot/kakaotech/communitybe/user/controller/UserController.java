@@ -22,13 +22,13 @@ public class UserController {
     private final UserService userService;
 
     @PatchMapping
-    public ResponseEntity<Void> updateUserInfo(@RequestBody SimpUserInfo userInfo) throws UserPrincipalNotFoundException {
+    public ResponseEntity<String> updateUserInfo(@RequestBody SimpUserInfo userInfo) throws UserPrincipalNotFoundException {
         log.info("[UserController] 회원정보 수정 시작");
 
-        userService.updateUserInfo(userInfo);
+        String response = userService.updateUserInfo(userInfo);
         log.info("[UserController] 회원정보 수정 성공");
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok().body(response);
     }
 
     @PatchMapping("/password")
