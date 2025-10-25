@@ -34,7 +34,7 @@ public class PostController {
     }
 
     @GetMapping("/{postId}")
-    public ResponseEntity<PostDetailWrapper> getPost(@PathVariable("postId") Integer postId) {
+    public ResponseEntity<PostDetailWrapper> getPost(@PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 상세조회 시작");
 
         PostDetailWrapper post = postService.getPost(postId);

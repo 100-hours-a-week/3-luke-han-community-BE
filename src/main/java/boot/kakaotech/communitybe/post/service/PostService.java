@@ -13,7 +13,7 @@ public interface PostService {
 
     CursorPage<PostListWrapper> getPosts(int cursor, int size);
 
-    PostDetailWrapper getPost(int postId);
+    PostDetailWrapper getPost(int postId) throws UserPrincipalNotFoundException;
 
     SavedPostDto savePost(CreatePostDto createPostDto) throws UserPrincipalNotFoundException;
 

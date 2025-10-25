@@ -6,6 +6,8 @@ import boot.kakaotech.communitybe.post.dto.PostListDto;
 import boot.kakaotech.communitybe.post.dto.PostListWrapper;
 import boot.kakaotech.communitybe.user.dto.SimpUserInfo;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -60,7 +62,16 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
     }
 
     @Override
-    public PostDetailWrapper getPostById(int postId) {
+    public PostDetailWrapper getPostById(int postId, int userId) {
+        BooleanExpression likedExpr = JPAExpressions
+                .selectOne()
+                .from(postLike)
+                .where(
+                        postLike.post.id.eq(postId),
+                        postLike.user.id.eq(userId)
+                )
+                .exists();
+
         PostDetailWrapper detail = jpaQueryFactory
                 .select(
                         Projections.fields(PostDetailWrapper.class,
@@ -76,6 +87,7 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                                         postLike.count().as("likeCount"),
                                         comment.count().as("commentCount"),
                                         post.viewCount,
+                                        likedExpr.as("liked"),
                                         post.createdAt
                                         ).as("post")
                         )

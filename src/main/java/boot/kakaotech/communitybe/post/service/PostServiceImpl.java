@@ -102,10 +102,11 @@ public class PostServiceImpl implements PostService {
      * @return
      */
     @Override
-    public PostDetailWrapper getPost(int postId) {
+    public PostDetailWrapper getPost(int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 상세조회 시작");
 
-        PostDetailWrapper post = postRepository.getPostById(postId);
+        int userId = userUtil.getCurrentUserId();
+        PostDetailWrapper post = postRepository.getPostById(postId, userId);
 
         if (post == null) {
             return null;

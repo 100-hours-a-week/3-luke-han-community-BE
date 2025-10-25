@@ -26,6 +26,8 @@ public class PostDetailDto {
 
     private int viewCount;
 
+    private boolean liked;
+
     private LocalDateTime createdAt;
 
 }
