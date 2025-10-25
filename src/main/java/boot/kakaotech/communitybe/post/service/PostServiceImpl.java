@@ -303,4 +303,18 @@ public class PostServiceImpl implements PostService {
         post.likePost(PostLike.builder().user(user).post(post).build());
     }
 
+    @Override
+    @Transactional
+    public void deletePostLike(int postId) throws UserPrincipalNotFoundException {
+        log.info("[PostService] 게시글 좋아요 취소 시작");
+
+        int userId = userUtil.getCurrentUserId();
+        Post post = postRepository.findById(postId).orElse(null);
+        if (post == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        post.deletePostLike(userId);
+    }
+
 }

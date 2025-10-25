@@ -67,4 +67,18 @@ public class Post {
         postLike.setPost(this);
     }
 
+    public void deletePostLike(int userId) {
+        if (likes == null) {
+            return;
+        }
+
+        likes.removeIf(postLike -> {
+            if (postLike.getUser() != null && postLike.getUser().getId().equals(userId)) {
+                postLike.setPost(null);
+                return true;
+            }
+            return false;
+        });
+    }
+
 }

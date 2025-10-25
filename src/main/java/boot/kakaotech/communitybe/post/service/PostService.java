@@ -23,4 +23,6 @@ public interface PostService {
 
     void addPostLike(int postId) throws UserPrincipalNotFoundException;
 
+    void deletePostLike(int postId) throws UserPrincipalNotFoundException;
+
 }

@@ -81,7 +81,18 @@ public class PostController {
     public ResponseEntity<Void> likePost(@PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 좋아요 시작 - postId: {}", postId);
 
-        return ResponseEntity.created().build();
+        postService.addPostLike(postId);
+
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @DeleteMapping("/{postId}/likes")
+    public ResponseEntity<Void> unlikePost(@PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
+        log.info("[PostControlller] 게시글 좋아요 취소 시작 -  postId: {}", postId);
+
+        postService.deletePostLike(postId);
+
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
 }
