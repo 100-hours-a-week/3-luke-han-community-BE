@@ -88,7 +88,8 @@ public class SecurityConfig {
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                     .requestMatchers(
                                             "/api/auth/**",
-                                            "/terms"
+                                            "/terms",
+                                            "/privacy"
                                     ).permitAll()
                                     .anyRequest().authenticated();
                     log.info("[SecurityConfig] URL 인가 구성 완료");
@@ -113,7 +114,7 @@ public class SecurityConfig {
                     logout
                             .logoutUrl("/api/auth/logout")
                             .addLogoutHandler(logoutHandler)
-                            .addLogoutHandler((request, response, authentication) -> {
+                            .logoutSuccessHandler((request, response, authentication) -> {
                                 response.setStatus(HttpServletResponse.SC_OK);
                             })
                             .permitAll();
