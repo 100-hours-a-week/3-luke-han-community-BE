@@ -8,6 +8,8 @@ import boot.kakaotech.communitybe.user.dto.SimpUserInfo;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
 import boot.kakaotech.communitybe.util.UserUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,10 +37,15 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public String updateUserInfo(SimpUserInfo userInfo) throws UserPrincipalNotFoundException, UsernameNotFoundException {
+    public String updateUserInfo(HttpServletRequest request, SimpUserInfo userInfo) throws UserPrincipalNotFoundException, UsernameNotFoundException {
         log.info("[UserService] 유저정보 업데이트 시작");
 
-        User user = userUtil.getCurrentUser();
+        HttpSession session = request.getSession();
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        User user = userUtil.getCurrentUser(session);
 
         user.setNickname(userInfo.getName());
         String presignedUrl = null;
@@ -54,10 +61,15 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void updatePassword(PasswordDto passwordDto) throws UserPrincipalNotFoundException, UsernameNotFoundException {
+    public void updatePassword(HttpServletRequest request, PasswordDto passwordDto) throws UserPrincipalNotFoundException, UsernameNotFoundException {
         log.info("[UserService] 비밀번호 변경 시작");
 
-        User user = userUtil.getCurrentUser();
+        HttpSession session = request.getSession();
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        User user = userUtil.getCurrentUser(session);
 
         if (!passwordEncoder.matches(passwordDto.getOldPassword(), user.getPassword())) {
             throw new BusinessException(ErrorCode.PASSWORD_NOT_MATCHED);

@@ -1,8 +1,9 @@
 package boot.kakaotech.communitybe.util;
 
+import boot.kakaotech.communitybe.common.exception.BusinessException;
+import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.user.entity.User;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.attribute.UserPrincipalNotFoundException;
@@ -19,16 +20,13 @@ public class UserUtil {
      * @return
      * @throws UserPrincipalNotFoundException
      */
-    public Integer getCurrentUserId() throws UserPrincipalNotFoundException {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null) {
-            throw new UserPrincipalNotFoundException(null);
+    public Integer getCurrentUserId(HttpSession session) throws UserPrincipalNotFoundException {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
 
-        // TODO: userId 반환로직 추가
-
-        return null;
+        return user.getId();
     }
 
     /**
@@ -40,18 +38,13 @@ public class UserUtil {
      * @return
      * @throws UserPrincipalNotFoundException
      */
-    public User getCurrentUser() throws UserPrincipalNotFoundException {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null) {
-            throw new UserPrincipalNotFoundException(null);
+    public User getCurrentUser(HttpSession session) throws UserPrincipalNotFoundException {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
 
-        Object principal = authentication.getPrincipal();
-
-        // TODO: User 반환 로직 추가
-
-        return null;
+        return user;
     }
 
 }

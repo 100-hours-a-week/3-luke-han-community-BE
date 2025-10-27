@@ -6,6 +6,7 @@ import boot.kakaotech.communitybe.post.dto.PostDetailWrapper;
 import boot.kakaotech.communitybe.post.dto.PostListWrapper;
 import boot.kakaotech.communitybe.post.dto.SavedPostDto;
 import boot.kakaotech.communitybe.post.service.PostService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -34,20 +35,20 @@ public class PostController {
     }
 
     @GetMapping("/{postId}")
-    public ResponseEntity<PostDetailWrapper> getPost(@PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
+    public ResponseEntity<PostDetailWrapper> getPost(HttpServletRequest request, @PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 상세조회 시작");
 
-        PostDetailWrapper post = postService.getPost(postId);
+        PostDetailWrapper post = postService.getPost(request, postId);
         log.info("[PostController] 게시글 상세조회 성공");
 
         return post != null ? ResponseEntity.ok(post) : ResponseEntity.noContent().build();
     }
 
     @PostMapping
-    public ResponseEntity<SavedPostDto> savePost(@RequestBody CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
+    public ResponseEntity<SavedPostDto> savePost(HttpServletRequest request, @RequestBody CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 생성 시작");
 
-        SavedPostDto dto = postService.savePost(createPostDto);
+        SavedPostDto dto = postService.savePost(request, createPostDto);
         log.info("[PostController] 게시글 생성 성공");
 
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
@@ -55,42 +56,43 @@ public class PostController {
 
     @PatchMapping("/{postId}")
     public ResponseEntity<SavedPostDto> updatePost(
+            HttpServletRequest request,
             @PathVariable("postId") Integer postId,
             @RequestBody CreatePostDto createPostDto
     ) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 수정 시작");
 
         createPostDto.setId(postId);
-        SavedPostDto dto = postService.updatePost(createPostDto);
+        SavedPostDto dto = postService.updatePost(request, createPostDto);
         log.info("[PostController] 게시글 수정 성공");
 
         return ResponseEntity.ok().body(dto);
     }
 
     @PatchMapping("/{postId}/status")
-    public ResponseEntity<Void> updatePostStatus(@PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
+    public ResponseEntity<Void> updatePostStatus(HttpServletRequest request, @PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 삭제 시작");
 
-        postService.softDeletePost(postId);
+        postService.softDeletePost(request, postId);
         log.info("[PostController] 게시글 삭제 성공");
 
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{postId}/likes")
-    public ResponseEntity<Void> likePost(@PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
+    public ResponseEntity<Void> likePost(HttpServletRequest request, @PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
         log.info("[PostController] 게시글 좋아요 시작 - postId: {}", postId);
 
-        postService.addPostLike(postId);
+        postService.addPostLike(request, postId);
 
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @DeleteMapping("/{postId}/likes")
-    public ResponseEntity<Void> unlikePost(@PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
+    public ResponseEntity<Void> unlikePost(HttpServletRequest request, @PathVariable("postId") Integer postId) throws UserPrincipalNotFoundException {
         log.info("[PostControlller] 게시글 좋아요 취소 시작 -  postId: {}", postId);
 
-        postService.deletePostLike(postId);
+        postService.deletePostLike(request, postId);
 
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
