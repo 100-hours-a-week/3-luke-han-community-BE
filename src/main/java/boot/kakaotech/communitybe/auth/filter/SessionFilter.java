@@ -38,15 +38,23 @@ public class SessionFilter implements Filter {
         HttpSession session = httpRequest.getSession(false);
         String uri = httpRequest.getRequestURI();
 
+        // 인증 확인 제외 uri이거나 session이 있고 user 객체가 등록이 되어있으면 doFilter
         if (isExcludedUrl(uri) || (session != null && session.getAttribute("user") != null)) {
             log.info("[SessionFilter] 인증정보 확인 완료");
             filterChain.doFilter(httpRequest, httpResponse);
             return;
         }
 
+        // 아니면 401
         throw new BusinessException(ErrorCode.UNAUTHORIZED);
     }
 
+    /**
+     * 인증 확인 제외 uri인지 확인하는 메서드
+     *
+     * @param uri
+     * @return
+     */
     private boolean isExcludedUrl(String uri) {
         PathContainer container = PathContainer.parsePath(uri);
         return excludedUris.stream().anyMatch(p -> p.matches(container));
