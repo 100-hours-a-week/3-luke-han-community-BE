@@ -1,6 +1,5 @@
 package boot.kakaotech.communitybe.util;
 
-import boot.kakaotech.communitybe.auth.dto.CustomUserDetails;
 import boot.kakaotech.communitybe.user.entity.User;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,10 +26,7 @@ public class UserUtil {
             throw new UserPrincipalNotFoundException(null);
         }
 
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof CustomUserDetails userDetails) {
-            return userDetails.getUser().getId();
-        }
+        // TODO: userId 반환로직 추가
 
         return null;
     }
@@ -53,9 +49,7 @@ public class UserUtil {
 
         Object principal = authentication.getPrincipal();
 
-        if (principal instanceof CustomUserDetails userDetails) {
-            return userDetails.getUser();
-        }
+        // TODO: User 반환 로직 추가
 
         return null;
     }
