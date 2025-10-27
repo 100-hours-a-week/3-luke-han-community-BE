@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.server.PathContainer;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 
@@ -20,7 +21,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class SessionFilter implements Filter {
+public class SessionFilter extends OncePerRequestFilter {
 
     private final PathPatternParser patternParser = new PathPatternParser();
     private final List<PathPattern> excludedUris = Arrays.asList(
@@ -30,18 +31,15 @@ public class SessionFilter implements Filter {
     ).stream().map(patternParser::parse).toList();
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain) throws IOException, ServletException {
+    public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         log.info("[SessionFilter] 요청 세션 확인 시작");
 
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        HttpServletResponse httpResponse = (HttpServletResponse) response;
-        HttpSession session = httpRequest.getSession(false);
-        String uri = httpRequest.getRequestURI();
+        HttpSession session = request.getSession(false);
 
-        // 인증 확인 제외 uri이거나 session이 있고 user 객체가 등록이 되어있으면 doFilter
-        if (isExcludedUrl(uri) || (session != null && session.getAttribute("user") != null)) {
+        // session이 있고 user 객체가 등록이 되어있으면 doFilter
+        if (session != null && session.getAttribute("user") != null) {
             log.info("[SessionFilter] 인증정보 확인 완료");
-            filterChain.doFilter(httpRequest, httpResponse);
+            filterChain.doFilter(request, response);
             return;
         }
 
@@ -49,13 +47,9 @@ public class SessionFilter implements Filter {
         throw new BusinessException(ErrorCode.UNAUTHORIZED);
     }
 
-    /**
-     * 인증 확인 제외 uri인지 확인하는 메서드
-     *
-     * @param uri
-     * @return
-     */
-    private boolean isExcludedUrl(String uri) {
+    @Override
+    public boolean shouldNotFilter(HttpServletRequest request) {
+        String uri = request.getRequestURI();
         PathContainer container = PathContainer.parsePath(uri);
         return excludedUris.stream().anyMatch(p -> p.matches(container));
     }

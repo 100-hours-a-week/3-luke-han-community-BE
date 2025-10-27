@@ -199,7 +199,12 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-
+    /**
+     * 로그아웃 메서드
+     * session 초기화
+     *
+     * @param request
+     */
     @Override
     public void logout(HttpServletRequest request) {
         HttpSession session = request.getSession();
