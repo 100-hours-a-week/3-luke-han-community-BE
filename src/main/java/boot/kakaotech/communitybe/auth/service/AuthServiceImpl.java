@@ -1,5 +1,7 @@
 package boot.kakaotech.communitybe.auth.service;
 
+import boot.kakaotech.communitybe.auth.dto.LoginDto;
+import boot.kakaotech.communitybe.auth.dto.LoginUserDto;
 import boot.kakaotech.communitybe.auth.dto.SignupDto;
 import boot.kakaotech.communitybe.auth.dto.ValueDto;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
@@ -7,6 +9,8 @@ import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -161,6 +165,45 @@ public class AuthServiceImpl implements AuthService {
         if (nickname.isEmpty() || nickname.length() > 10 || nickname.matches(regex)) {
             throw new BusinessException(ErrorCode.INVALID_FORMAT);
         }
+    }
+
+    /**
+     * 로그인 메서드
+     * 만약 email과 비밀번호가 일치한다면 session에 user 정보 담은 후 LoginUserDto 반환
+     *
+     * @param request
+     * @param dto
+     * @return
+     */
+    @Override
+    public LoginUserDto login(HttpServletRequest request, LoginDto dto) {
+        log.info("[AuthService] 로그인 시작");
+
+        User user = userRepository.findByEmail(dto.getEmail()).orElse(null);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NON_EXISTING_USER);
+        }
+
+        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.PASSWORD_NOT_MATCHED);
+        }
+
+        HttpSession session = request.getSession();
+        session.setAttribute("user", user);
+        session.setMaxInactiveInterval(60 * 60); // 세션 유지시간 1시간 설정
+
+        return LoginUserDto.builder()
+                .userId(user.getId())
+                .nickname(user.getNickname())
+                .profileImageUrl(s3Service.createGETPresignedUrl(bucket, user.getProfileImageUrl()))
+                .build();
+    }
+
+
+    @Override
+    public void logout(HttpServletRequest request) {
+        HttpSession session = request.getSession();
+        session.invalidate();
     }
 
 }
