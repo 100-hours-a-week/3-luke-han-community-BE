@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.file.attribute.UserPrincipalNotFoundException;
+
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -20,17 +22,17 @@ public class UserController {
     private final UserService userService;
 
     @PatchMapping
-    public ResponseEntity<Void> updateUserInfo(@RequestBody SimpUserInfo userInfo) {
+    public ResponseEntity<String> updateUserInfo(@RequestBody SimpUserInfo userInfo) throws UserPrincipalNotFoundException {
         log.info("[UserController] 회원정보 수정 시작");
 
-        userService.updateUserInfo(userInfo);
+        String response = userService.updateUserInfo(userInfo);
         log.info("[UserController] 회원정보 수정 성공");
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok().body(response);
     }
 
     @PatchMapping("/password")
-    public ResponseEntity<Void> updatePassword(@RequestBody PasswordDto passwordDto) {
+    public ResponseEntity<Void> updatePassword(@RequestBody PasswordDto passwordDto) throws UserPrincipalNotFoundException {
         log.info("[UserController] 비밀번호 변경 시작");
 
         userService.updatePassword(passwordDto);

@@ -17,9 +17,9 @@ public class PostListDto {
 
     private String title;
 
-    private int likeCount;
+    private long likeCount;
 
-    private int commentCount;
+    private long commentCount;
 
     private int viewCount;
 

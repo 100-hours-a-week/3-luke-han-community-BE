@@ -10,11 +10,16 @@ import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.time.Duration;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,9 @@ public class JwtServiceImpl implements JwtService {
 
     @Value("${jwt.expire_time.refresh_token}")
     private long refreshTokenExpireTime;
+
+    private final RedisTemplate<String, String> redisTemplate;
+    private static final String REFRESH_TOKEN_PREFIX = "RT:";
 
     /**
      * access token 유효성 검사
@@ -62,13 +70,17 @@ public class JwtServiceImpl implements JwtService {
      * @return
      */
     @Override
-    public boolean isValidRefreshToken(String refreshToken, UserDetails user) {
+    public boolean isValidRefreshToken(String refreshToken, User user) {
         String email = extractEmailFromToken(refreshToken);
-        if (!email.equals(user.getUsername())) {
+        if (!email.equals(user.getEmail())) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
-        // TODO: redis에 저장된 리프레시 토큰과 비교 로직 추가
+        String storedToken = redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + user.getEmail());
+        System.out.println("@@@@@@@@@@@@@@@@ storedToken: " + storedToken);
+        if (storedToken == null || !storedToken.equals(refreshToken)) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
 
         return true;
     }
@@ -94,17 +106,71 @@ public class JwtServiceImpl implements JwtService {
      */
     @Override
     public String generateRefreshToken(User user) {
-        return generateToken(user, refreshTokenExpireTime);
+        String refreshToken = generateToken(user, refreshTokenExpireTime);
+        saveRefreshToken(user.getEmail(), refreshToken);
+
+        return refreshToken;
     }
 
+    /**
+     * 토큰에서 이메일 추출하는 메서드
+     *
+     * @param token
+     * @return
+     */
     @Override
     public String getEmailFromToken(String token) {
         return extractEmailFromToken(token);
     }
 
+    /**
+     * refresh token 만료시간 반환하는 메서드
+     *
+     * @return
+     */
     @Override
     public long getRefreshTokenExpireTime() {
         return refreshTokenExpireTime;
+    }
+
+    /**
+     * refresh token rotate 방식을 적용한 새 토큰 발급하는 메서드
+     *
+     * @param refreshToken
+     * @param user
+     * @return
+     */
+    @Override
+    public Map<String, String> rotateTokens(String refreshToken, User user) {
+        if (!isValidRefreshToken(refreshToken, user)) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
+
+        invalidateRefreshToken(user.getEmail());
+
+        String newAccessToken = generateToken(user, accessTokenExpireTime);
+        String newRefreshToken = generateToken(user, refreshTokenExpireTime);
+
+        redisTemplate.opsForValue().set(
+                REFRESH_TOKEN_PREFIX + user.getEmail(),
+                newRefreshToken,
+                Duration.ofMillis(refreshTokenExpireTime)
+        );
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("access_token", newAccessToken);
+        tokens.put("refresh_token", newRefreshToken);
+        return tokens;
+    }
+
+    /**
+     * redis에 저장된 refresh token을 지우는 메서드
+     *
+     * @param email
+     */
+    @Override
+    public void invalidateRefreshToken(String email) {
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + email);
     }
 
     /**
@@ -175,6 +241,22 @@ public class JwtServiceImpl implements JwtService {
     private SecretKey getSigninKey() {
         byte[] keyBytes = Decoders.BASE64URL.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    /**
+     * refresh token을 레디스에 저장하는 메서드
+     * - RT:${user's email}의 키로 저장
+     *
+     * @param email
+     * @param refreshToken
+     */
+    private void saveRefreshToken(String email, String refreshToken) {
+        redisTemplate.opsForValue().set(
+                REFRESH_TOKEN_PREFIX + email,
+                refreshToken,
+                refreshTokenExpireTime,
+                TimeUnit.MILLISECONDS
+        );
     }
 
 }

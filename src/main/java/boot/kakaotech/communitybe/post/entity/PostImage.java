@@ -1,13 +1,11 @@
 package boot.kakaotech.communitybe.post.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,7 +20,7 @@ public class PostImage {
     @JoinColumn(name = "post_id")
     private Post post;
 
-    @Column(nullable = false)
+    @Column(name = "image_key", nullable = false)
     private String imageKey;
 
 }

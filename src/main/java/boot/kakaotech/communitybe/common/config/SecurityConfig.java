@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -18,6 +20,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -43,7 +46,23 @@ public class SecurityConfig {
     UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(frontendUrl));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PATCH", "DELETE"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Set-Cookie",
+                "Access-Control-Allow-Credentials",
+                "Access-Control-Allow-Origin"
+        ));
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Cookie",
+                "Access-Control-Allow-Credentials",
+                "Access-Control-Allow-Origin"
+        ));
+        configuration.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
@@ -61,29 +80,41 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtVerificationFilter jwtVerificationFilter) throws Exception {
         log.info("[SecurityConfig] 보안 필터 구성 시작");
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(requests -> {
+                    log.info("[SecurityConfig] requests: {}", requests.toString());
                     requests
+                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                     .requestMatchers(
-                                            "/"
+                                            "/api/auth/**",
+                                            "/terms",
+                                            "/privacy"
                                     ).permitAll()
                                     .anyRequest().authenticated();
                     log.info("[SecurityConfig] URL 인가 구성 완료");
                 })
                 .addFilterBefore(jwtVerificationFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(e -> {
+                    e.accessDeniedHandler((request, response, accessDeniedException) -> {
+                        log.warn("[SecurityConfig] 접근 거부 처리: {}",  accessDeniedException.getMessage());
+                        response.setStatus(403);
+                    })
+                    .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));
+                })
                 .authenticationProvider(authenticationProvider(userDetailsService, passwordEncoder))
                 .formLogin(form -> {
+                    log.info("[SecurityConfig] 로그인 요청 시작");
                     form
                             .loginProcessingUrl("/api/auth/signin")
                             .successHandler(loginSuccessHandler)
                             .failureHandler(loginFailureHandler);
-                    ;
                 })
                 .logout(logout -> {
                     logout
                             .logoutUrl("/api/auth/logout")
                             .addLogoutHandler(logoutHandler)
-                            .addLogoutHandler((request, response, authentication) -> {
+                            .logoutSuccessHandler((request, response, authentication) -> {
                                 response.setStatus(HttpServletResponse.SC_OK);
                             })
                             .permitAll();

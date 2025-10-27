@@ -17,4 +17,6 @@ public class SignupDto {
 
     private String nickname;
 
+    private String profileImageName;
+
 }

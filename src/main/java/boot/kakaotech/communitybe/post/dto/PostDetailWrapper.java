@@ -21,4 +21,7 @@ public class PostDetailWrapper {
 
     private List<CommentDto> comments;
 
+    public void setComments(List<CommentDto> comments) {
+        this.comments = comments;
+    }
 }

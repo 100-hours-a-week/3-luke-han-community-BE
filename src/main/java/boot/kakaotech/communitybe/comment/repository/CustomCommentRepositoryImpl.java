@@ -2,6 +2,7 @@ package boot.kakaotech.communitybe.comment.repository;
 
 import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +22,15 @@ public class CustomCommentRepositoryImpl implements CustomCommentRepository {
 
     @Override
     public List<CommentDto> getComments(Integer postId, Integer parentId, Pageable pageable) {
+        BooleanExpression parentFilter;
+        if (parentId == null || parentId == 0) {
+            // 최상위 댓글: parentComment IS NULL
+            parentFilter = comment.parentComment.isNull();
+        } else {
+            // 대댓글: parentComment.id = parentId
+            parentFilter = comment.parentComment.id.eq(parentId);
+        }
+
         List<CommentDto> comments = jpaQueryFactory
                 .select(Projections.constructor(CommentDto.class,
                         comment.id,
@@ -32,10 +42,14 @@ public class CustomCommentRepositoryImpl implements CustomCommentRepository {
                         comment.depth,
                         comment.createdAt))
                 .from(comment)
-                .join(user)
-                .join(post).on(comment.post.eq(post))
-                .where(comment.post.id.eq(postId),
-                        comment.parentComment.id.eq(parentId))
+                .join(comment.user, user)
+                .join(comment.post, post)
+                .leftJoin(comment.parentComment)
+                .where(
+                        comment.post.id.eq(postId),
+                        parentFilter
+                )
+                .orderBy(comment.createdAt.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1)
                 .fetch();

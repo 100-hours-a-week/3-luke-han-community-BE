@@ -1,7 +1,10 @@
 package boot.kakaotech.communitybe.auth.filter;
 
+import boot.kakaotech.communitybe.auth.dto.CustomUserDetails;
 import boot.kakaotech.communitybe.auth.service.CustomUserDetailsService;
 import boot.kakaotech.communitybe.auth.service.JwtService;
+import boot.kakaotech.communitybe.common.exception.BusinessException;
+import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.util.CookieUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
@@ -22,6 +25,7 @@ import org.springframework.web.util.pattern.PathPatternParser;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -37,12 +41,31 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
     private final CookieUtil cookieUtil;
 
     private final List<PathPattern> excludedUrls = Arrays.asList(
-            "/api/auth/**"
+            "/api/auth/**",
+            "/terms",
+            "/privacy"
+//            "/api/**"
     ).stream().map(patternParser::parse).toList();
 
+    /**
+     * JWT 인가 처리
+     * 1. 헤더에서 acces token 꺼내기
+     * 2. 만료가 안 되었다면 SecurityContextHolder에 인증정보 추가 후 진행
+     * 3. 만료 시 refresh token 유효성검사 후 rtr 진행
+     *
+     * @param request
+     * @param response
+     * @param filterChain
+     * @throws ServletException
+     * @throws IOException
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         log.info("[JwtVerificationFilter] 토큰 검증 시작");
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String authHeader = request.getHeader(AUTHORIZATION);
         String accessToken = null;
@@ -56,15 +79,17 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
             } catch (ExpiredJwtException e) {
                 log.info("[JwtVerificationFilter] Access token 만료");
 
-                // TODO: refresh token으로 갱신하는 로직 추가
-                // 일단은 401로 처리
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
+                String refreshToken = cookieUtil.getCookie(request, "refresh_token").getValue();
+                if (!handleExpiredAccessToken(response, refreshToken)) {
+                    return;
+                }
             }
         }
 
         log.info("[JwtVerificationFilter] 토큰 검증 성공");
+        log.info("[JwtVerificationFilter] start {} {}", request.getMethod(), request.getRequestURI());
         filterChain.doFilter(request, response);
+        log.info("[JwtVerificationFilter] end {} {} {}", request.getMethod(), request.getRequestURI(),  response.getStatus());
     }
 
     @Override
@@ -96,6 +121,36 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
+    }
+
+    /**
+     * access token 만료 시 rtr 진행하는 메서드
+     * - access token, refresh token 모두 새로 발급
+     *
+     * @param response
+     * @param refreshToken
+     */
+    private boolean handleExpiredAccessToken(HttpServletResponse response, String refreshToken) {
+        if (refreshToken == null) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return false;
+        }
+
+        CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(
+                jwtService.getEmailFromToken(refreshToken)
+        );
+
+        Map<String, String> tokens = jwtService.rotateTokens(refreshToken, userDetails.getUser());
+        if (tokens != null) {
+            cookieUtil.addCookie(response, "refresh_token", tokens.get("refresh_token"), (int) (jwtService.getRefreshTokenExpireTime() / 1000));
+
+            response.setHeader(AUTHORIZATION, "Bearer " + tokens.get("access_token"));
+            processAccessToken(tokens.get("access_token"), response);
+            return true;
+        }
+
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return false;
     }
 
 }

@@ -1,10 +1,9 @@
 package boot.kakaotech.communitybe.common.s3.service;
 
-import boot.kakaotech.communitybe.user.entity.User;
-import org.springframework.web.multipart.MultipartFile;
-
 public interface S3Service {
 
-    String uploadUserProfile(User user, MultipartFile file);
+    String createGETPresignedUrl(String bucketName, String keyName);
+
+    String createPUTPresignedUrl(String bucketName, String keyName);
 
 }

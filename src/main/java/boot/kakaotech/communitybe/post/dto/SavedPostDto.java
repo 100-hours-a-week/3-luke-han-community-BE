@@ -1,20 +1,20 @@
-package boot.kakaotech.communitybe.auth.dto;
+package boot.kakaotech.communitybe.post.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoginUserDto {
+public class SavedPostDto {
 
-    private Integer userId;
+    private Integer postId;
 
-    private String nickname;
-
-    private String profileImageUrl;
+    private List<String> presignedUrls;
 
 }

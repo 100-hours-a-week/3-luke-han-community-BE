@@ -10,6 +10,8 @@ public interface CustomPostRepository {
 
     List<PostListWrapper> getPostsUsingFetch(Pageable pageable);
 
-    PostDetailWrapper getPostById(int postId);
+    PostDetailWrapper getPostById(int postId, int userId);
+
+    List<String> getImages(int postId);
 
 }

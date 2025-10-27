@@ -2,6 +2,7 @@ package boot.kakaotech.communitybe.user.service;
 
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.user.dto.PasswordDto;
 import boot.kakaotech.communitybe.user.dto.SimpUserInfo;
 import boot.kakaotech.communitybe.user.entity.User;
@@ -9,12 +10,14 @@ import boot.kakaotech.communitybe.user.repository.UserRepository;
 import boot.kakaotech.communitybe.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.attribute.UserPrincipalNotFoundException;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -25,20 +28,28 @@ public class UserServiceImpl implements UserService {
 
     private final UserUtil userUtil;
     private final PasswordEncoder passwordEncoder;
+    private final S3Service s3Service;
+
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucket;
 
     @Override
     @Transactional
-    public void updateUserInfo(SimpUserInfo userInfo) throws UserPrincipalNotFoundException, UsernameNotFoundException {
+    public String updateUserInfo(SimpUserInfo userInfo) throws UserPrincipalNotFoundException, UsernameNotFoundException {
         log.info("[UserService] 유저정보 업데이트 시작");
 
-        int userId = userUtil.getCurrentUserId();
-
-        User user = userRepository.findById(userId).orElseThrow(
-                () -> new UsernameNotFoundException("user not found: " + userId)
-        );
+        User user = userUtil.getCurrentUser();
 
         user.setNickname(userInfo.getName());
-        // TODO: 이미지처리
+        String presignedUrl = null;
+
+        if (userInfo.getProfileImageUrl() != null) {
+            String imageKey = "user:" + user.getEmail() + ":" + UUID.randomUUID() + userInfo.getProfileImageUrl();
+            presignedUrl = s3Service.createPUTPresignedUrl(bucket, imageKey);
+        }
+
+        log.info("[UserService] 유저정보 업데이트 성공");
+        return presignedUrl;
     }
 
     @Override
@@ -46,11 +57,7 @@ public class UserServiceImpl implements UserService {
     public void updatePassword(PasswordDto passwordDto) throws UserPrincipalNotFoundException, UsernameNotFoundException {
         log.info("[UserService] 비밀번호 변경 시작");
 
-        int userId = userUtil.getCurrentUserId();
-
-        User user = userRepository.findById(userId).orElseThrow(
-                () -> new UsernameNotFoundException("user not found: " + userId)
-        );
+        User user = userUtil.getCurrentUser();
 
         if (!passwordEncoder.matches(passwordDto.getOldPassword(), user.getPassword())) {
             throw new BusinessException(ErrorCode.PASSWORD_NOT_MATCHED);
