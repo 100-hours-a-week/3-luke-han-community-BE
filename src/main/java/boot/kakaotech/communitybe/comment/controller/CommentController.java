@@ -5,6 +5,7 @@ import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import boot.kakaotech.communitybe.comment.dto.CreateCommentDto;
 import boot.kakaotech.communitybe.comment.service.CommentService;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -37,10 +38,13 @@ public class CommentController {
     }
 
     @PostMapping("/posts/{postId}/comments")
-    public ResponseEntity<Integer> addComment(@PathVariable("postId") Integer postId, @RequestBody CreateCommentDto dto) throws UserPrincipalNotFoundException {
+    public ResponseEntity<Integer> addComment(
+            HttpServletRequest request,
+            @PathVariable("postId") Integer postId,
+            @RequestBody CreateCommentDto dto) throws UserPrincipalNotFoundException {
         log.info("[CommentController] 댓글 생성 시작 - postId: {}", postId);
 
-        Integer commentId = commentService.addComment(postId, dto);
+        Integer commentId = commentService.addComment(request, postId, dto);
         log.info("[CommentController] 댓글 생성 성공");
 
         return ResponseEntity.status(HttpStatus.CREATED).body(commentId);
@@ -48,13 +52,14 @@ public class CommentController {
 
     @PatchMapping("/posts/{postId}/comments/{commentId}")
     public ResponseEntity<Void> updateComment(
+            HttpServletRequest request,
             @PathVariable("postId") Integer postId,
             @PathVariable("commentId") Integer commentId,
             @RequestBody ValueDto value
     ) throws UserPrincipalNotFoundException {
         log.info("[CommentController] 댓글 수정 시작 - postId: {}, commentId: {}", postId, commentId);
 
-        commentService.updateComment(commentId, value);
+        commentService.updateComment(request, commentId, value);
         log.info("[CommentController] 댓글 수정 성공");
 
         return ResponseEntity.ok().build();
@@ -62,12 +67,13 @@ public class CommentController {
 
     @PatchMapping("/posts/{postId}/comments/{commentId}/status")
     public ResponseEntity<Void> updateCommentStatus(
+            HttpServletRequest request,
             @PathVariable("postId") Integer postId,
             @PathVariable("commentId") Integer commentId
     ) throws UserPrincipalNotFoundException {
         log.info("[CommentController] 댓글 삭제 시작 -  postId: {}, commentId: {}", postId, commentId);
 
-        commentService.softDeleteComment(commentId);
+        commentService.softDeleteComment(request, commentId);
         log.info("[CommentController] 댓글 삭제 성공");
 
         return ResponseEntity.ok().build();

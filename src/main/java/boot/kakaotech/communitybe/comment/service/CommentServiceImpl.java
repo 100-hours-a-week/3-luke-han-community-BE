@@ -13,6 +13,8 @@ import boot.kakaotech.communitybe.post.entity.Post;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.util.UserUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -91,13 +93,18 @@ public class CommentServiceImpl implements CommentService {
      */
     @Override
     @Transactional
-    public Integer addComment(Integer postId, CreateCommentDto dto) throws UserPrincipalNotFoundException {
+    public Integer addComment(HttpServletRequest request, Integer postId, CreateCommentDto dto) throws UserPrincipalNotFoundException {
         log.info("[CommentService] 댓글 생성 시작, content: {}", dto.getContent());
+
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
 
         Integer parentId = dto.getParentId();
         Comment parent = commentRepository.findById(parentId == null ? 0 : parentId).orElse(null);
         Post post = postRepository.findById(postId).orElse(null);
-        User user = userUtil.getCurrentUser();
+        User user = userUtil.getCurrentUser(session);
 
         Comment comment = Comment.builder()
                 .parentComment(parent)
@@ -126,10 +133,15 @@ public class CommentServiceImpl implements CommentService {
      */
     @Override
     @Transactional
-    public void updateComment(Integer commentId, ValueDto value) throws UserPrincipalNotFoundException {
+    public void updateComment(HttpServletRequest request, Integer commentId, ValueDto value) throws UserPrincipalNotFoundException {
         log.info("[CommentService] 댓글 수정 시작");
 
-        User user = userUtil.getCurrentUser();
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        User user = userUtil.getCurrentUser(session);
 
         Comment comment = commentRepository.findById(commentId).orElse(null);
         if (comment == null) {
@@ -155,9 +167,15 @@ public class CommentServiceImpl implements CommentService {
      */
     @Override
     @Transactional
-    public void softDeleteComment(Integer commentId) throws UserPrincipalNotFoundException {
+    public void softDeleteComment(HttpServletRequest request, Integer commentId) throws UserPrincipalNotFoundException {
         log.info("[CommentService] 댓글 삭제 시작");
-        User user = userUtil.getCurrentUser();
+
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        User user = userUtil.getCurrentUser(session);
 
         Comment comment = commentRepository.findById(commentId).orElse(null);
         if (comment == null) {

@@ -3,6 +3,7 @@ package boot.kakaotech.communitybe.user.controller;
 import boot.kakaotech.communitybe.user.dto.PasswordDto;
 import boot.kakaotech.communitybe.user.dto.SimpUserInfo;
 import boot.kakaotech.communitybe.user.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -22,20 +23,24 @@ public class UserController {
     private final UserService userService;
 
     @PatchMapping
-    public ResponseEntity<String> updateUserInfo(@RequestBody SimpUserInfo userInfo) throws UserPrincipalNotFoundException {
+    public ResponseEntity<String> updateUserInfo(
+            HttpServletRequest request,
+            @RequestBody SimpUserInfo userInfo) throws UserPrincipalNotFoundException {
         log.info("[UserController] 회원정보 수정 시작");
 
-        String response = userService.updateUserInfo(userInfo);
+        String response = userService.updateUserInfo(request, userInfo);
         log.info("[UserController] 회원정보 수정 성공");
 
         return ResponseEntity.ok().body(response);
     }
 
     @PatchMapping("/password")
-    public ResponseEntity<Void> updatePassword(@RequestBody PasswordDto passwordDto) throws UserPrincipalNotFoundException {
+    public ResponseEntity<Void> updatePassword(
+            HttpServletRequest request,
+            @RequestBody PasswordDto passwordDto) throws UserPrincipalNotFoundException {
         log.info("[UserController] 비밀번호 변경 시작");
 
-        userService.updatePassword(passwordDto);
+        userService.updatePassword(request, passwordDto);
         log.info("[UserController] 비밀번호 변경 성공");
 
         return ResponseEntity.ok().build();

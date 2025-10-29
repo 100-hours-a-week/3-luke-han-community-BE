@@ -44,3 +44,11 @@ cloud:
       static: "${AWS_REGION}"
     stack:
       auto: false
+
+#server:
+#  servlet:
+#    session:
+#      cookie:
+#        same-site: none
+#        secure: true
+#        http-only: true

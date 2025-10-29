@@ -16,6 +16,8 @@ import boot.kakaotech.communitybe.post.entity.PostLike;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.util.UserUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -102,10 +104,15 @@ public class PostServiceImpl implements PostService {
      * @return
      */
     @Override
-    public PostDetailWrapper getPost(int postId) throws UserPrincipalNotFoundException {
+    public PostDetailWrapper getPost(HttpServletRequest request, int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 상세조회 시작");
 
-        int userId = userUtil.getCurrentUserId();
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        int userId = userUtil.getCurrentUserId(session);
         PostDetailWrapper post = postRepository.getPostById(postId, userId);
 
         if (post == null) {
@@ -163,10 +170,15 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     @Transactional
-    public SavedPostDto savePost(CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
+    public SavedPostDto savePost(HttpServletRequest request, CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 생성 시작");
 
-        User author = userUtil.getCurrentUser();
+        HttpSession session = request.getSession();
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        User author = userUtil.getCurrentUser(session);
 
         Post post = Post.builder()
                 .author(author)
@@ -209,10 +221,15 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     @Transactional
-    public SavedPostDto updatePost(CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
+    public SavedPostDto updatePost(HttpServletRequest request, CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 수정 시작");
 
-        User user = userUtil.getCurrentUser();
+        HttpSession session = request.getSession();
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        User user = userUtil.getCurrentUser(session);
 
         Post post = postRepository.findById(createPostDto.getId()).orElse(null);
         if (post == null) {
@@ -272,10 +289,15 @@ public class PostServiceImpl implements PostService {
      * @throws UserPrincipalNotFoundException
      */
     @Override
-    public void softDeletePost(int postId) throws UserPrincipalNotFoundException {
+    public void softDeletePost(HttpServletRequest request, int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 삭제 시작");
 
-        User user = userUtil.getCurrentUser();
+        HttpSession session = request.getSession();
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        User user = userUtil.getCurrentUser(session);
 
         Post post = postRepository.findById(postId).orElse(null);
         if (post == null) {
@@ -292,10 +314,15 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public void addPostLike(int postId) throws UserPrincipalNotFoundException {
+    public void addPostLike(HttpServletRequest request, int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 좋아요 시작");
 
-        User user = userUtil.getCurrentUser();
+        HttpSession session = request.getSession();
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        User user = userUtil.getCurrentUser(session);
         Post post = postRepository.findById(postId).orElse(null);
         if (post == null) {
             throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
@@ -306,10 +333,15 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public void deletePostLike(int postId) throws UserPrincipalNotFoundException {
+    public void deletePostLike(HttpServletRequest request, int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 좋아요 취소 시작");
 
-        int userId = userUtil.getCurrentUserId();
+        HttpSession session = request.getSession();
+        if (session == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        int userId = userUtil.getCurrentUserId(session);
         Post post = postRepository.findById(postId).orElse(null);
         if (post == null) {
             throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
