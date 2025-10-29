@@ -1,8 +1,11 @@
 package boot.kakaotech.communitybe.auth.controller;
 
+import boot.kakaotech.communitybe.auth.dto.LoginDto;
+import boot.kakaotech.communitybe.auth.dto.LoginUserDto;
 import boot.kakaotech.communitybe.auth.dto.SignupDto;
 import boot.kakaotech.communitybe.auth.dto.ValueDto;
 import boot.kakaotech.communitybe.auth.service.AuthService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -55,6 +58,26 @@ public class AuthController {
         return isExist ?
                 ResponseEntity.status(HttpStatus.CONFLICT).build() :
                 ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/signin")
+    public ResponseEntity<LoginUserDto> signin(
+            HttpServletResponse response,
+            @RequestBody LoginDto dto
+            ) {
+        log.info("[AuthController] 로그인 시작");
+
+        LoginUserDto res = authService.login(response, dto);
+
+        return ResponseEntity.status(HttpStatus.OK).body(res);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletResponse response) {
+        log.info("[AuthController] 로그아웃");
+
+        authService.logout(response);
+        return ResponseEntity.status(HttpStatus.OK).build();
     }
 
 }

@@ -1,4 +1,4 @@
-package boot.kakaotech.communitybe.auth.service;
+package boot.kakaotech.communitybe.auth.jwt;
 
 import boot.kakaotech.communitybe.user.entity.User;
 import io.jsonwebtoken.Jwts;
@@ -62,7 +62,17 @@ public class JwtProvider {
                 .compact();
     }
 
-    private SecretKey getSigninKey() {
+    /**
+     * refresh token 만료시간 반환하는 게터
+     * secret이나 access token 만료시간은 외부에서 호출할 일이 없어 @Getter 쓰지 않고 얘만 따로 구현
+     *
+     * @return
+     */
+    public long getRefreshTokenExpireTime() {
+        return refreshTokenExpireTime;
+    }
+
+    public SecretKey getSigninKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
