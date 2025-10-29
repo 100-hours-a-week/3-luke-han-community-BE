@@ -6,6 +6,7 @@ import boot.kakaotech.communitybe.auth.dto.SignupDto;
 import boot.kakaotech.communitybe.auth.dto.ValueDto;
 import boot.kakaotech.communitybe.auth.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -60,13 +61,13 @@ public class AuthController {
                 ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/signin")
+    @PostMapping(value = "/signin")
     public ResponseEntity<LoginUserDto> login(HttpServletRequest request, @RequestBody LoginDto dto) {
         log.info("[AuthController] 로그인 시작 - email: {}", dto.getEmail());
 
-        LoginUserDto response = authService.login(request, dto);
+        LoginUserDto res = authService.login(request, dto);
         log.info("[AuthController] 로그인 성공 - email: {}", dto.getEmail());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(res);
     }
 
     @PostMapping("/logout")

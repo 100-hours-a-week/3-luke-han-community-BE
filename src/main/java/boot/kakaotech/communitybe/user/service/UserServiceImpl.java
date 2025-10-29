@@ -1,5 +1,6 @@
 package boot.kakaotech.communitybe.user.service;
 
+import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.common.s3.service.S3Service;
@@ -13,8 +14,6 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +36,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public String updateUserInfo(HttpServletRequest request, SimpUserInfo userInfo) throws UserPrincipalNotFoundException, UsernameNotFoundException {
+    public String updateUserInfo(HttpServletRequest request, SimpUserInfo userInfo) throws UserPrincipalNotFoundException {
         log.info("[UserService] 유저정보 업데이트 시작");
 
         HttpSession session = request.getSession();
@@ -61,7 +60,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void updatePassword(HttpServletRequest request, PasswordDto passwordDto) throws UserPrincipalNotFoundException, UsernameNotFoundException {
+    public void updatePassword(HttpServletRequest request, PasswordDto passwordDto) throws UserPrincipalNotFoundException {
         log.info("[UserService] 비밀번호 변경 시작");
 
         HttpSession session = request.getSession();

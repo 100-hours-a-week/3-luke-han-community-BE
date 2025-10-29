@@ -33,8 +33,13 @@ public class SessionFilter extends OncePerRequestFilter {
     @Override
     public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         log.info("[SessionFilter] 요청 세션 확인 시작");
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         HttpSession session = request.getSession(false);
+        System.out.println("@@@@@@@@@@@ 쿠키: " + request.getCookies().toString());
 
         // session이 있고 user 객체가 등록이 되어있으면 doFilter
         if (session != null && session.getAttribute("user") != null) {
