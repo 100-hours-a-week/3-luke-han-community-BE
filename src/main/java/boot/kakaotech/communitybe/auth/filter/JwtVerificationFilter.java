@@ -13,11 +13,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.server.PathContainer;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.pattern.PathPattern;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -31,13 +37,21 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
 
     private final UserRepository userRepository;
 
+    private final PathPatternParser patternParser = new PathPatternParser();
+    private final List<PathPattern> excludedUrls = Arrays.asList(
+            "/api/auth/**",
+            "/terms",
+            "/privacy"
+    ).stream().map(patternParser::parse).toList();
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        log.info("[JwtVerificationFilter] 인증필터 시작");
-        if (request.getMethod().equals("OPTIONS")) {
+        log.info("[JwtVerificationFilter] 인증필터 시작 - method: {}", request.getMethod());
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
+        System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@ preflight 여기까지 넘어옴");
 
         // access token 헤더에서 추출 및 validatoin
         String accessToken = getAccessTokenFromRequest(request);
@@ -54,6 +68,8 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
             // access token이 유효하면 ThreadLocal에 user 세팅 후 다음 필터로
             context.set(user);
             filterChain.doFilter(request, response);
+            context.clear();
+            return;
         } else {
             // access token이 유효하지 않으면 refresh token도 조회
             Cookie cookie = cookieUtil.getCookie(request, "refresh_token");
@@ -82,6 +98,13 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
         // dispatcher servlet에 들렀다 나온 후 ThreadLocal 초기화
         context.clear();
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        PathContainer container = PathContainer.parsePath(uri);
+        return excludedUrls.stream().anyMatch(p -> p.matches(container));
     }
 
     /**

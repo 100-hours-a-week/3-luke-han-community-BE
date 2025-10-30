@@ -31,7 +31,7 @@ public class PasswordEncoder {
     }
 
     public boolean matches(String rawPassword, String encodedPassword) {
-        if (rawPassword == null || isPasswordEnoughLength(rawPassword)) {
+        if (rawPassword == null || !isPasswordEnoughLength(rawPassword)) {
             throw new IllegalArgumentException("Invalid password");
         }
 

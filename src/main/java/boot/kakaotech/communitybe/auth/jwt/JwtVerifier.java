@@ -52,7 +52,7 @@ public class JwtVerifier {
     public Integer extractUserIdFromToken(String token) {
         Claims claims = getClaimsFromToken(token);
 
-        return Integer.getInteger(claims.getSubject());
+        return Integer.parseInt(claims.getSubject());
     }
 
 
