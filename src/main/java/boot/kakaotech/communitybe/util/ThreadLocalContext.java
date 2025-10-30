@@ -1,16 +1,30 @@
 package boot.kakaotech.communitybe.util;
 
 import boot.kakaotech.communitybe.user.entity.User;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.attribute.UserPrincipalNotFoundException;
 
 @Component
-@RequiredArgsConstructor
-public class UserUtil {
+public class ThreadLocalContext {
 
     private static final ThreadLocal<User> threadLocal = new ThreadLocal<>();
+
+    /**
+     * ThreadLocal 내 유저 세팅하는 메서드
+     *
+     * @param user
+     */
+    public void set(User user) {
+        threadLocal.set(user);
+    }
+
+    /**
+     * ThreadLocal 초기화하는 메서드
+     */
+    public void clear() {
+        threadLocal.remove();
+    }
 
     /**
      * 현재 요청을 보낸 유저의 id를 반환하는 메서드

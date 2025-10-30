@@ -15,7 +15,7 @@ import boot.kakaotech.communitybe.post.entity.PostImage;
 import boot.kakaotech.communitybe.post.entity.PostLike;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.user.entity.User;
-import boot.kakaotech.communitybe.util.UserUtil;
+import boot.kakaotech.communitybe.util.ThreadLocalContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,7 +41,7 @@ public class PostServiceImpl implements PostService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
 
-    private final UserUtil userUtil;
+    private final ThreadLocalContext threadLocalContext;
 
     private final RedisTemplate<String, String> redisTemplate;
     private static final String VIEW_COUNT_PREFIX = "post_view:";
@@ -105,7 +105,7 @@ public class PostServiceImpl implements PostService {
     public PostDetailWrapper getPost(int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 상세조회 시작");
 
-        int userId = userUtil.getCurrentUserId();
+        int userId = threadLocalContext.getCurrentUserId();
         PostDetailWrapper post = postRepository.getPostById(postId, userId);
 
         if (post == null) {
@@ -166,7 +166,7 @@ public class PostServiceImpl implements PostService {
     public SavedPostDto savePost(CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 생성 시작");
 
-        User author = userUtil.getCurrentUser();
+        User author = threadLocalContext.getCurrentUser();
 
         Post post = Post.builder()
                 .author(author)
@@ -212,7 +212,7 @@ public class PostServiceImpl implements PostService {
     public SavedPostDto updatePost(CreatePostDto createPostDto) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 수정 시작");
 
-        User user = userUtil.getCurrentUser();
+        User user = threadLocalContext.getCurrentUser();
 
         Post post = postRepository.findById(createPostDto.getId()).orElse(null);
         if (post == null) {
@@ -275,7 +275,7 @@ public class PostServiceImpl implements PostService {
     public void softDeletePost(int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 삭제 시작");
 
-        User user = userUtil.getCurrentUser();
+        User user = threadLocalContext.getCurrentUser();
 
         Post post = postRepository.findById(postId).orElse(null);
         if (post == null) {
@@ -295,7 +295,7 @@ public class PostServiceImpl implements PostService {
     public void addPostLike(int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 좋아요 시작");
 
-        User user = userUtil.getCurrentUser();
+        User user = threadLocalContext.getCurrentUser();
         Post post = postRepository.findById(postId).orElse(null);
         if (post == null) {
             throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
@@ -309,7 +309,7 @@ public class PostServiceImpl implements PostService {
     public void deletePostLike(int postId) throws UserPrincipalNotFoundException {
         log.info("[PostService] 게시글 좋아요 취소 시작");
 
-        int userId = userUtil.getCurrentUserId();
+        int userId = threadLocalContext.getCurrentUserId();
         Post post = postRepository.findById(postId).orElse(null);
         if (post == null) {
             throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);

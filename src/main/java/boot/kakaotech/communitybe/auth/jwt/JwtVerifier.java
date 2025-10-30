@@ -7,18 +7,16 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JwtVerifier {
-
-    @Value("${jwt.secret}")
-    private String secret;
 
     private final JwtProvider jwtProvider;
 
@@ -46,6 +44,29 @@ public class JwtVerifier {
     }
 
     /**
+     * 토큰의 subject인 userId를 Integer로 형변환 후 반환하는 메서드
+     *
+     * @param token
+     * @return
+     */
+    public Integer extractUserIdFromToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+
+        return Integer.getInteger(claims.getSubject());
+    }
+
+
+    public Map<String, String> rotateToken(User user) {
+        Map<String, String> tokens = new HashMap<>();
+
+        String accessToken = jwtProvider.generateAccessToken(user);
+        String refreshToken = jwtProvider.generateRefreshToken(user);
+        tokens.put("accessToken", accessToken);
+        tokens.put("refreshToken", refreshToken);
+        return tokens;
+    }
+
+    /**
      * 만료된 토큰인지 확인하는 메서드
      *
      * @param token
@@ -56,18 +77,6 @@ public class JwtVerifier {
 
         Date expiration = claims.getExpiration();
         return expiration.before(new Date());
-    }
-
-    /**
-     * 토큰의 subject인 userId를 Integer로 형변환 후 반환하는 메서드
-     *
-     * @param token
-     * @return
-     */
-    private Integer extractUserIdFromToken(String token) {
-        Claims claims = getClaimsFromToken(token);
-
-        return Integer.getInteger(claims.getSubject());
     }
 
     /**

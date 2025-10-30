@@ -12,7 +12,7 @@ import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.post.entity.Post;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.user.entity.User;
-import boot.kakaotech.communitybe.util.UserUtil;
+import boot.kakaotech.communitybe.util.ThreadLocalContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,7 +33,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
 
-    private final UserUtil userUtil;
+    private final ThreadLocalContext threadLocalContext;
     private final S3Service s3Service;
 
     @Value("${cloud.aws.s3.bucket}")
@@ -97,7 +97,7 @@ public class CommentServiceImpl implements CommentService {
         Integer parentId = dto.getParentId();
         Comment parent = commentRepository.findById(parentId == null ? 0 : parentId).orElse(null);
         Post post = postRepository.findById(postId).orElse(null);
-        User user = userUtil.getCurrentUser();
+        User user = threadLocalContext.getCurrentUser();
 
         Comment comment = Comment.builder()
                 .parentComment(parent)
@@ -129,7 +129,7 @@ public class CommentServiceImpl implements CommentService {
     public void updateComment(Integer commentId, ValueDto value) throws UserPrincipalNotFoundException {
         log.info("[CommentService] 댓글 수정 시작");
 
-        User user = userUtil.getCurrentUser();
+        User user = threadLocalContext.getCurrentUser();
 
         Comment comment = commentRepository.findById(commentId).orElse(null);
         if (comment == null) {
@@ -157,7 +157,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     public void softDeleteComment(Integer commentId) throws UserPrincipalNotFoundException {
         log.info("[CommentService] 댓글 삭제 시작");
-        User user = userUtil.getCurrentUser();
+        User user = threadLocalContext.getCurrentUser();
 
         Comment comment = commentRepository.findById(commentId).orElse(null);
         if (comment == null) {

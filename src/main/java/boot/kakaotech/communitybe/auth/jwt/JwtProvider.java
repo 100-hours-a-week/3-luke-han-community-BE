@@ -27,6 +27,8 @@ public class JwtProvider {
     @Value("${jwt.expire_time.refresh_token}")
     private long refreshTokenExpireTime;
 
+
+
     /**
      * access token 생성하는 메서드
      * subject로 userId, claim으로 nickname 주입(email은 민감정보라 판단하여 뺐음)

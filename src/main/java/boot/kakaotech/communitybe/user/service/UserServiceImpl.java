@@ -8,7 +8,7 @@ import boot.kakaotech.communitybe.user.dto.PasswordDto;
 import boot.kakaotech.communitybe.user.dto.SimpUserInfo;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
-import boot.kakaotech.communitybe.util.UserUtil;
+import boot.kakaotech.communitybe.util.ThreadLocalContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,7 +25,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 
-    private final UserUtil userUtil;
+    private final ThreadLocalContext threadLocalContext;
     private final PasswordEncoder passwordEncoder;
     private final S3Service s3Service;
 
@@ -37,7 +37,7 @@ public class UserServiceImpl implements UserService {
     public String updateUserInfo(SimpUserInfo userInfo) throws UserPrincipalNotFoundException {
         log.info("[UserService] 유저정보 업데이트 시작");
 
-        User user = userUtil.getCurrentUser();
+        User user = threadLocalContext.getCurrentUser();
 
         user.setNickname(userInfo.getName());
         String presignedUrl = null;
@@ -56,7 +56,7 @@ public class UserServiceImpl implements UserService {
     public void updatePassword(PasswordDto passwordDto) throws UserPrincipalNotFoundException {
         log.info("[UserService] 비밀번호 변경 시작");
 
-        User user = userUtil.getCurrentUser();
+        User user = threadLocalContext.getCurrentUser();
 
         if (!passwordEncoder.matches(passwordDto.getOldPassword(), user.getPassword())) {
             throw new BusinessException(ErrorCode.PASSWORD_NOT_MATCHED);
