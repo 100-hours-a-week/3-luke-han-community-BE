@@ -169,7 +169,14 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-
+    /**
+     * 로그인 메서드
+     * user 존재 여부, password 일치 여부 확인 후 access token과 refresh token 발급
+     *
+     * @param response
+     * @param dto
+     * @return
+     */
     @Override
     public LoginUserDto login(HttpServletResponse response, LoginDto dto) {
         log.info("[AuthService] 로그인 시작 - email: {}", dto.getEmail());
@@ -194,10 +201,16 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
+    /**
+     * 로그아웃 메서드
+     *
+     * @param response
+     */
     @Override
     public void logout(HttpServletResponse response) {
         log.info("[AuthService] 로그아웃 시작");
 
+        response.setHeader("Authorization", "");
         cookieUtil.deleteCookie(response, "refresh_token");
     }
 
