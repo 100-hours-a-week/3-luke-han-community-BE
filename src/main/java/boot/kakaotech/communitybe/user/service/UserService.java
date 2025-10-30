@@ -2,7 +2,6 @@ package boot.kakaotech.communitybe.user.service;
 
 import boot.kakaotech.communitybe.user.dto.PasswordDto;
 import boot.kakaotech.communitybe.user.dto.SimpUserInfo;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.nio.file.attribute.UserPrincipalNotFoundException;
 

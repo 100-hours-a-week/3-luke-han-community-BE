@@ -1,22 +1,19 @@
 package boot.kakaotech.communitybe.auth.filter;
 
-import boot.kakaotech.communitybe.auth.dto.CustomUserDetails;
-import boot.kakaotech.communitybe.auth.service.CustomUserDetailsService;
-import boot.kakaotech.communitybe.auth.service.JwtService;
-import boot.kakaotech.communitybe.common.exception.BusinessException;
-import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.auth.jwt.JwtProvider;
+import boot.kakaotech.communitybe.auth.jwt.JwtVerifier;
+import boot.kakaotech.communitybe.user.entity.User;
+import boot.kakaotech.communitybe.user.repository.UserRepository;
 import boot.kakaotech.communitybe.util.CookieUtil;
-import io.jsonwebtoken.ExpiredJwtException;
+import boot.kakaotech.communitybe.util.ThreadLocalContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.server.PathContainer;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.pattern.PathPattern;
@@ -26,131 +23,99 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JwtVerificationFilter extends OncePerRequestFilter {
 
-    private static final String AUTHORIZATION = "Authorization";
-
-    private final JwtService jwtService;
-    private final CustomUserDetailsService userDetailsService;
-
-    private final PathPatternParser patternParser = new PathPatternParser();
+    private final ThreadLocalContext context;
+    private final JwtVerifier verifier;
+    private final JwtProvider provider;
     private final CookieUtil cookieUtil;
 
+    private final UserRepository userRepository;
+
+    private final PathPatternParser patternParser = new PathPatternParser();
     private final List<PathPattern> excludedUrls = Arrays.asList(
             "/api/auth/**",
             "/terms",
             "/privacy"
-//            "/api/**"
     ).stream().map(patternParser::parse).toList();
 
-    /**
-     * JWT 인가 처리
-     * 1. 헤더에서 acces token 꺼내기
-     * 2. 만료가 안 되었다면 SecurityContextHolder에 인증정보 추가 후 진행
-     * 3. 만료 시 refresh token 유효성검사 후 rtr 진행
-     *
-     * @param request
-     * @param response
-     * @param filterChain
-     * @throws ServletException
-     * @throws IOException
-     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        log.info("[JwtVerificationFilter] 토큰 검증 시작");
+        log.info("[JwtVerificationFilter] 인증필터 시작 - method: {}", request.getMethod());
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
+        System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@ preflight 여기까지 넘어옴");
 
-        String authHeader = request.getHeader(AUTHORIZATION);
-        String accessToken = null;
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            accessToken = authHeader.substring(7);
+        // access token 헤더에서 추출 및 validatoin
+        String accessToken = getAccessTokenFromRequest(request);
+        if (accessToken == null) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
         }
 
-        if (accessToken != null) {
-            try {
-                processAccessToken(accessToken, response);
-            } catch (ExpiredJwtException e) {
-                log.info("[JwtVerificationFilter] Access token 만료");
+        // access token에 담긴 userId로 user 조회
+        int userId = verifier.extractUserIdFromToken(accessToken);
+        User user = userRepository.findById(userId).orElseThrow();
 
-                String refreshToken = cookieUtil.getCookie(request, "refresh_token").getValue();
-                if (!handleExpiredAccessToken(response, refreshToken)) {
-                    return;
-                }
+        if (verifier.isValidToken(accessToken, user)) {
+            // access token이 유효하면 ThreadLocal에 user 세팅 후 다음 필터로
+            context.set(user);
+            filterChain.doFilter(request, response);
+            context.clear();
+            return;
+        } else {
+            // access token이 유효하지 않으면 refresh token도 조회
+            Cookie cookie = cookieUtil.getCookie(request, "refresh_token");
+            if (cookie != null || cookie.getValue() == null) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
             }
+
+            String refreshToken = cookie.getValue();
+            // refresh token이 유효하지 않으면 종료
+            if (!verifier.isValidToken(refreshToken, user)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
+            }
+
+            // refresh token rotate 진행
+            Map<String, String> tokens = verifier.rotateToken(user);
+            String newAccessToken = tokens.get("accessToken");
+            String newRefreshToken = tokens.get("refreshToken");
+            response.setHeader("Authorization", "Bearer " + newAccessToken);
+            cookieUtil.addCookie(response, "refresh_token", newRefreshToken, (int) provider.getRefreshTokenExpireTime() / 1000);
+            // ThreadLocal에 유저 세팅
+            context.set(user);
         }
 
-        log.info("[JwtVerificationFilter] 토큰 검증 성공");
-        log.info("[JwtVerificationFilter] start {} {}", request.getMethod(), request.getRequestURI());
         filterChain.doFilter(request, response);
-        log.info("[JwtVerificationFilter] end {} {} {}", request.getMethod(), request.getRequestURI(),  response.getStatus());
+        // dispatcher servlet에 들렀다 나온 후 ThreadLocal 초기화
+        context.clear();
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        PathContainer container = PathContainer.parsePath(path);
-
+        String uri = request.getRequestURI();
+        PathContainer container = PathContainer.parsePath(uri);
         return excludedUrls.stream().anyMatch(p -> p.matches(container));
     }
 
     /**
-     * SecurityContextHolder에 저장된 인증 정보가 없다면 새로 저장하는 메서드
+     * request Authorization header에서 access token 가져와서 반환하는 메서드
+     * access token이 null이거나 Bearer로 시작하지 않으면 throw error
      *
-     * @param accessToken
-     * @param response
+     * @param request
+     * @return
      */
-    private void processAccessToken(String accessToken, HttpServletResponse response) {
-        String email = jwtService.getEmailFromToken(accessToken);
-
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails =  userDetailsService.loadUserByUsername(email);
-
-            if (jwtService.isValidAccessToken(accessToken, userDetails)) {
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
-        }
+    private String getAccessTokenFromRequest(HttpServletRequest request) {
+        String accessToken = request.getHeader("Authorization");
+        return accessToken == null ? null : accessToken.substring(7);
     }
-
-    /**
-     * access token 만료 시 rtr 진행하는 메서드
-     * - access token, refresh token 모두 새로 발급
-     *
-     * @param response
-     * @param refreshToken
-     */
-    private boolean handleExpiredAccessToken(HttpServletResponse response, String refreshToken) {
-        if (refreshToken == null) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return false;
-        }
-
-        CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(
-                jwtService.getEmailFromToken(refreshToken)
-        );
-
-        Map<String, String> tokens = jwtService.rotateTokens(refreshToken, userDetails.getUser());
-        if (tokens != null) {
-            cookieUtil.addCookie(response, "refresh_token", tokens.get("refresh_token"), (int) (jwtService.getRefreshTokenExpireTime() / 1000));
-
-            response.setHeader(AUTHORIZATION, "Bearer " + tokens.get("access_token"));
-            processAccessToken(tokens.get("access_token"), response);
-            return true;
-        }
-
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        return false;
-    }
-
 }

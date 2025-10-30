@@ -1,19 +1,23 @@
 package boot.kakaotech.communitybe.auth.service;
 
+import boot.kakaotech.communitybe.auth.dto.LoginDto;
+import boot.kakaotech.communitybe.auth.dto.LoginUserDto;
 import boot.kakaotech.communitybe.auth.dto.SignupDto;
 import boot.kakaotech.communitybe.auth.dto.ValueDto;
+import boot.kakaotech.communitybe.auth.jwt.JwtProvider;
+import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
+import boot.kakaotech.communitybe.util.CookieUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -27,6 +31,8 @@ public class AuthServiceImpl implements AuthService {
     private final S3Service s3Service;
 
     private final PasswordEncoder passwordEncoder;
+    private final JwtProvider jwtProvider;
+    private final CookieUtil cookieUtil;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
@@ -161,6 +167,51 @@ public class AuthServiceImpl implements AuthService {
         if (nickname.isEmpty() || nickname.length() > 10 || nickname.matches(regex)) {
             throw new BusinessException(ErrorCode.INVALID_FORMAT);
         }
+    }
+
+    /**
+     * 로그인 메서드
+     * user 존재 여부, password 일치 여부 확인 후 access token과 refresh token 발급
+     *
+     * @param response
+     * @param dto
+     * @return
+     */
+    @Override
+    public LoginUserDto login(HttpServletResponse response, LoginDto dto) {
+        log.info("[AuthService] 로그인 시작 - email: {}", dto.getEmail());
+
+        User user = userRepository.findByEmail(dto.getEmail()).orElse(null);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.INVALID_EMAIL);
+        }
+
+        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.PASSWORD_NOT_MATCHED);
+        }
+
+        response.setHeader("Authorization", "Bearer " + jwtProvider.generateAccessToken(user));
+        String refreshToken = jwtProvider.generateRefreshToken(user);
+        cookieUtil.addCookie(response, "refresh_token", refreshToken, (int) jwtProvider.getRefreshTokenExpireTime() / 1000);
+
+        return LoginUserDto.builder()
+                .userId(user.getId())
+                .nickname(user.getNickname())
+                .profileImageUrl(s3Service.createGETPresignedUrl(bucket, user.getProfileImageUrl()))
+                .build();
+    }
+
+    /**
+     * 로그아웃 메서드
+     *
+     * @param response
+     */
+    @Override
+    public void logout(HttpServletResponse response) {
+        log.info("[AuthService] 로그아웃 시작");
+
+        response.setHeader("Authorization", "");
+        cookieUtil.deleteCookie(response, "refresh_token");
     }
 
 }
