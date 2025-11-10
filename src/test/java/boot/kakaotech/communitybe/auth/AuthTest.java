@@ -1,9 +1,5 @@
 package boot.kakaotech.communitybe.auth;
 
-import boot.kakaotech.communitybe.auth.dto.SignupDto;
-import boot.kakaotech.communitybe.auth.service.AuthService;
-import boot.kakaotech.communitybe.user.entity.User;
-import boot.kakaotech.communitybe.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -14,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
 @Transactional
