@@ -7,11 +7,11 @@ import boot.kakaotech.communitybe.common.CommonErrorDto;
 import boot.kakaotech.communitybe.common.CommonResponseMapper;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
-import boot.kakaotech.communitybe.common.properties.JwtProperties;
+import boot.kakaotech.communitybe.common.properties.JwtProperty;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
-import boot.kakaotech.communitybe.util.CookieUtil;
-import boot.kakaotech.communitybe.util.ThreadLocalContext;
+import boot.kakaotech.communitybe.common.util.CookieUtil;
+import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
@@ -33,7 +33,7 @@ import java.util.List;
 @Slf4j
 public class JwtVerificationFilter extends OncePerRequestFilter {
 
-    private final JwtProperties jwtProperties;
+    private final JwtProperty jwtProperty;
 
     private final JwtVerifier verifier;
     private final PathPatternParser parser;
@@ -45,7 +45,7 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final CommonResponseMapper responseMapper;
 
-    private final List<PathPattern> excludedPatterns = jwtProperties.getExcludedPatterns()
+    private final List<PathPattern> excludedPatterns = jwtProperty.getExcludedPatterns()
                     .stream()
                     .map(parser::parse)
                     .toList();
@@ -71,7 +71,7 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
             log.info("[JwtVerificationFilter] Access Token 만료");
 
             String refreshToken = cookieUtil
-                    .getCookie(request, jwtProperties.getName()
+                    .getCookie(request, jwtProperty.getName()
                     .getRefreshToken())
                     .getValue();
 
@@ -81,8 +81,8 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
             }
 
             String newAccessToken = jwtProvider.generateToken(context.getCurrentUser(), TokenName.ACCESS_TOKEN);
-            response.setHeader(jwtProperties.getAuthorization(), "Bearer " + newAccessToken);
-            cookieUtil.addCookie(response, jwtProperties.getName().getRefreshToken(), refreshToken, (int) jwtProperties.getTime().getRefreshTokenExpireTime() / 1000);
+            response.setHeader(jwtProperty.getAuthorization(), "Bearer " + newAccessToken);
+            cookieUtil.addCookie(response, jwtProperty.getName().getRefreshToken(), refreshToken, (int) jwtProperty.getTime().getRefreshTokenExpireTime() / 1000);
         }
 
         filterChain.doFilter(request, response);
@@ -140,7 +140,7 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
      * @return
      */
     private String getAuthHeader(HttpServletRequest request) {
-        String authHeader = request.getHeader(jwtProperties.getAuthorization());
+        String authHeader = request.getHeader(jwtProperty.getAuthorization());
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return null;
         }

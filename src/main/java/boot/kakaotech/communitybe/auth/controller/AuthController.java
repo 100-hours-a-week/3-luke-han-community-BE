@@ -49,7 +49,7 @@ public class AuthController {
         );
 
         log.info("[AuthController] 회원가입 요청 성공");
-        return ResponseEntity.ok(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**

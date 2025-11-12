@@ -1,4 +1,4 @@
-package boot.kakaotech.communitybe.util;
+package boot.kakaotech.communitybe.common.util;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;

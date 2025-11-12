@@ -7,12 +7,12 @@ import boot.kakaotech.communitybe.auth.dto.ValueDto;
 import boot.kakaotech.communitybe.auth.jwt.JwtProvider;
 import boot.kakaotech.communitybe.auth.jwt.TokenName;
 import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
-import boot.kakaotech.communitybe.common.properties.JwtProperties;
+import boot.kakaotech.communitybe.common.properties.JwtProperty;
 import boot.kakaotech.communitybe.common.validation.Validator;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
-import boot.kakaotech.communitybe.util.CookieUtil;
-import boot.kakaotech.communitybe.util.ThreadLocalContext;
+import boot.kakaotech.communitybe.common.util.CookieUtil;
+import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +36,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final PasswordEncoder passwordEncoder;
 
-    private final JwtProperties jwtProperties;
+    private final JwtProperty jwtProperty;
 
     /**
      * 회원가입 서비스 메서드
@@ -102,11 +102,11 @@ public class AuthServiceImpl implements AuthService {
 
         cookieUtil.addCookie(
                 response,
-                jwtProperties.getName().getRefreshToken(),
+                jwtProperty.getName().getRefreshToken(),
                 refreshToken,
-                (int) jwtProperties.getTime().getRefreshTokenExpireTime() / 1000);
+                (int) jwtProperty.getTime().getRefreshTokenExpireTime() / 1000);
         // 쿠키에 넣기
-        response.addHeader(jwtProperties.getAuthorization(), "Bearer " + accessToken);
+        response.addHeader(jwtProperty.getAuthorization(), "Bearer " + accessToken);
         // Authorization 헤더에 넣기
 
         String presignedUrl = ""; // TODO: GET용 presigned url 생성
@@ -129,7 +129,7 @@ public class AuthServiceImpl implements AuthService {
         log.info("[AuthService] 로그아웃 시작");
 
         context.clear();
-        cookieUtil.deleteCookie(response, jwtProperties.getName().getRefreshToken());
+        cookieUtil.deleteCookie(response, jwtProperty.getName().getRefreshToken());
     }
 
     @Override

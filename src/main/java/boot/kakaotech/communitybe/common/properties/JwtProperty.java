@@ -9,7 +9,7 @@ import java.util.List;
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "jwt")
-public class JwtProperties {
+public class JwtProperty {
 
     private String secret;
     private Name name;

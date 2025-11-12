@@ -1,4 +1,4 @@
-package boot.kakaotech.communitybe.util;
+package boot.kakaotech.communitybe.common.util;
 
 import boot.kakaotech.communitybe.user.entity.User;
 import org.springframework.stereotype.Component;

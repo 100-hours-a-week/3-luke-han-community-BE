@@ -1,6 +1,6 @@
 package boot.kakaotech.communitybe.auth.jwt;
 
-import boot.kakaotech.communitybe.common.properties.JwtProperties;
+import boot.kakaotech.communitybe.common.properties.JwtProperty;
 import boot.kakaotech.communitybe.user.entity.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -17,7 +17,7 @@ import java.util.Date;
 @Slf4j
 public class JwtProvider {
 
-    private final JwtProperties jwtProperties;
+    private final JwtProperty jwtProperty;
 
     /**
      * 토큰 생성하는 메서드, Enum으로 정의하여 access token인지 refresh token인지 판별하여 생성
@@ -30,8 +30,8 @@ public class JwtProvider {
     public String generateToken(User user, TokenName name) {
         long expirationTime = name.equals(
                 TokenName.ACCESS_TOKEN) ?
-                jwtProperties.getTime().getAccessTokenExpireTime() :
-                jwtProperties.getTime().getRefreshTokenExpireTime();
+                jwtProperty.getTime().getAccessTokenExpireTime() :
+                jwtProperty.getTime().getRefreshTokenExpireTime();
 
         return Jwts.builder()
                 .subject(String.valueOf(user.getId()))
@@ -48,7 +48,7 @@ public class JwtProvider {
      * @return
      */
     public SecretKey getSigninKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(jwtProperties.getSecret());
+        byte[] keyBytes = Decoders.BASE64.decode(jwtProperty.getSecret());
         return Keys.hmacShaKeyFor(keyBytes);
     }
 

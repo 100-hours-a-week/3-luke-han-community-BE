@@ -30,8 +30,8 @@ jwt:
     access_token: "access_token"
     refresh_token: "refresh_token"
   expire_time:
-    access_token_expire_time: "${ACCESS_TOKEN_EXPIRE_TIME}"
-    refresh_token_expire_time: "${REFRESH_TOKEN_EXPIRE_TIME}"
+    access-token-expire-time: "${ACCESS_TOKEN_EXPIRE_TIME}"
+    refresh-token-expire-time: "${REFRESH_TOKEN_EXPIRE_TIME}"
   authorization: "Authorization"
   excluded-patterns:
     - "/api/auth/**"
@@ -39,16 +39,19 @@ jwt:
     - "/privacy"
 
 frontend:
-
+  url: "${FRONTEND_URL}"
 
 cloud:
   aws:
     s3:
       bucket: "${S3_BUCKET}"
     credentials:
-
-
+      access-key: "${S3_ACCESS_KEY}"
+      secret-key: "${S3_SECRET_KEY}"
     region:
       static: "${AWS_REGION}"
     stack:
       auto: false
+
+prefix:
+  view-count: "post_view:"
