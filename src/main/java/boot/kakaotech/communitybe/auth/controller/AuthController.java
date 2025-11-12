@@ -117,9 +117,7 @@ public class AuthController {
                 isExist ? "존재하는 이메일입니다." : "사용 가능한 이메일입니다."
         );
 
-        return isExist ?
-                ResponseEntity.status(HttpStatus.CONFLICT).body(res) :
-                ResponseEntity.status(HttpStatus.NO_CONTENT).body(res);
+        return ResponseEntity.status(isExist ? HttpStatus.CONFLICT : HttpStatus.NO_CONTENT).body(res);
     }
 
     @PostMapping("/duplications/nickname")
@@ -134,9 +132,7 @@ public class AuthController {
                 isExist ? "존재하는 닉네임입니다." : "사용 가능한 닉네임입니다."
         );
 
-        return isExist ?
-                ResponseEntity.status(HttpStatus.CONFLICT).body(res) :
-                ResponseEntity.status(HttpStatus.NO_CONTENT).body(res);
+        return ResponseEntity.status(isExist ? HttpStatus.CONFLICT : HttpStatus.NO_CONTENT).body(res);
     }
 
 }
