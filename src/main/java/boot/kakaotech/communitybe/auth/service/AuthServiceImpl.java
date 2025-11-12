@@ -11,6 +11,7 @@ import boot.kakaotech.communitybe.common.validation.Validator;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
 import boot.kakaotech.communitybe.util.CookieUtil;
+import boot.kakaotech.communitybe.util.ThreadLocalContext;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtProvider provider;
     private final CookieUtil cookieUtil;
     private final Validator validator;
+    private final ThreadLocalContext context;
 
     private final PasswordEncoder passwordEncoder;
 
@@ -113,6 +115,20 @@ public class AuthServiceImpl implements AuthService {
                 .nickname(user.getNickname())
                 .profileImageUrl(presignedUrl)
                 .build();
+    }
+
+    /**
+     * 로그아웃 API
+     * - ThreadLocal에 저장된 유저정보 삭제, 쿠키에서 Refresh Token 삭제
+     *
+     * @param response
+     */
+    @Override
+    public void logout(HttpServletResponse response) {
+        log.info("[AuthService] 로그아웃 시작");
+
+        context.clear();
+        cookieUtil.deleteCookie(response, jwtProperties.getName().getRefreshToken());
     }
 
 }

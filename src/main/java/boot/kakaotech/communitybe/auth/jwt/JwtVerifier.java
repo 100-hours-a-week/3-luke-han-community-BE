@@ -30,7 +30,7 @@ public class JwtVerifier {
     public void isValidToken(String token, User user) {
         Integer userId = extractUserIdFromToken(token);
 
-        if (userId == null || !userId.equals(user.getId())) {
+        if (userId == null || !userId.equals(user.getId()) || isExpiredToken(token)) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
     }

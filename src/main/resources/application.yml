@@ -33,6 +33,10 @@ jwt:
     access_token_expire_time: "${ACCESS_TOKEN_EXPIRE_TIME}"
     refresh_token_expire_time: "${REFRESH_TOKEN_EXPIRE_TIME}"
   authorization: "Authorization"
+  excluded-patterns:
+    - "/api/auth/**"
+    - "/terms"
+    - "/privacy"
 
 frontend:
 

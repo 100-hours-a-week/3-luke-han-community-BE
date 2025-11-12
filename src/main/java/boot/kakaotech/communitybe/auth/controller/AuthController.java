@@ -5,6 +5,7 @@ import boot.kakaotech.communitybe.auth.dto.LoginResponse;
 import boot.kakaotech.communitybe.auth.dto.SignupRequest;
 import boot.kakaotech.communitybe.auth.service.AuthService;
 import boot.kakaotech.communitybe.common.CommonResponseDto;
+import boot.kakaotech.communitybe.common.CommonResponseMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,8 @@ public class AuthController {
 
     private final AuthService authService;
 
+    private final CommonResponseMapper responseMapper;
+
     /**
      * 회원가입 API
      * 1. AuthService로 회원가입 및 PUT용 presigned url 생성
@@ -38,10 +41,10 @@ public class AuthController {
 
         String presignedUrl = authService.signup(signupRequest);
 
-        CommonResponseDto<String> response = CommonResponseDto.<String>builder()
-                .data(presignedUrl)
-                .message("회원가입 성공")
-                .build();
+        CommonResponseDto<String> response = responseMapper.createResponse(
+                presignedUrl,
+                "회원가입 성공"
+        );
 
         log.info("[AuthController] 회원가입 요청 성공");
         return ResponseEntity.ok(response);
@@ -66,12 +69,24 @@ public class AuthController {
 
         LoginResponse loginResponse = authService.login(response, loginRequest);
 
-        CommonResponseDto<LoginResponse> res = CommonResponseDto.<LoginResponse>builder()
-                .data(loginResponse)
-                .message("로그인 성공")
-                .build();
+        CommonResponseDto<LoginResponse> res = responseMapper.createResponse(
+                loginResponse,
+                "로그인 성공"
+        );
 
         log.info("[AuthController] 로그인 성공 - email: {}", loginRequest.getEmail());
+        return ResponseEntity.ok(res);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<CommonResponseDto<Void>> logout(HttpServletResponse response) {
+        log.info("[AuthController] 로그아웃 시작");
+
+        authService.logout(response);
+        CommonResponseDto<Void> res = responseMapper.createResponse(
+                "로그아웃 성공"
+        );
+
         return ResponseEntity.ok(res);
     }
 
