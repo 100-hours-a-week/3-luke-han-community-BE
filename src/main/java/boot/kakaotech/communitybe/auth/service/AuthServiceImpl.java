@@ -3,6 +3,7 @@ package boot.kakaotech.communitybe.auth.service;
 import boot.kakaotech.communitybe.auth.dto.LoginRequest;
 import boot.kakaotech.communitybe.auth.dto.LoginResponse;
 import boot.kakaotech.communitybe.auth.dto.SignupRequest;
+import boot.kakaotech.communitybe.auth.dto.ValueDto;
 import boot.kakaotech.communitybe.auth.jwt.JwtProvider;
 import boot.kakaotech.communitybe.auth.jwt.TokenName;
 import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
@@ -129,6 +130,28 @@ public class AuthServiceImpl implements AuthService {
 
         context.clear();
         cookieUtil.deleteCookie(response, jwtProperties.getName().getRefreshToken());
+    }
+
+    @Override
+    public boolean checkEmail(ValueDto dto) {
+        String email = dto.getValue();
+        log.info("[AuthService] 이메일 중복확인 시작 - email: {}", email);
+
+        validator.validateEmail(email);
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        return user != null;
+    }
+
+    @Override
+    public boolean checkNickname(ValueDto dto) {
+        String nickname = dto.getValue();
+        log.info("[AuthService] 닉네임 중복확인 시작 - nickname: {}", nickname);
+
+        validator.validateNickname(nickname);
+        User user = userRepository.findByNickname(nickname).orElse(null);
+
+        return user != null;
     }
 
 }

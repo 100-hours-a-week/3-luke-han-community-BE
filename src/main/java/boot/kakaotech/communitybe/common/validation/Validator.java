@@ -55,7 +55,7 @@ public class Validator {
      *
      * @param email
      */
-    private void validateEmail(String email) {
+    public void validateEmail(String email) {
         String regex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
 
         if (!email.matches(regex)) {
@@ -69,7 +69,7 @@ public class Validator {
      *
      * @param password
      */
-    private void validatePassword(String password) {
+    public void validatePassword(String password) {
         String regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=`~\\[\\]{};':\",./<>?]).+$";
 
         if (password.length() < 8 || password.length() > 20 || !password.matches(regex)) {
@@ -83,7 +83,7 @@ public class Validator {
      *
      * @param nickname
      */
-    private void validateNickname(String nickname) {
+    public void validateNickname(String nickname) {
         String regex = ".*\\s.*";
 
         if (nickname.isEmpty() || nickname.length() > 10 || nickname.matches(regex)) {
