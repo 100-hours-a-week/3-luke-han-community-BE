@@ -23,6 +23,13 @@ public class PostController {
 
     private final CommonResponseMapper responseMapper;
 
+    /**
+     * 게시글 목록 조회 API
+     *
+     * @param cursor
+     * @param size
+     * @return
+     */
     @GetMapping
     public ResponseEntity<CommonResponseDto<CursorPage<PostListWrapper>>> getPosts(
             @RequestParam Integer cursor,

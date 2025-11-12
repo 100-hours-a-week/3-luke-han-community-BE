@@ -1,5 +1,7 @@
 package boot.kakaotech.communitybe.common.util;
 
+import boot.kakaotech.communitybe.common.exception.BusinessException;
+import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.user.entity.User;
 import org.springframework.stereotype.Component;
 
@@ -32,12 +34,11 @@ public class ThreadLocalContext {
      * 2. 인증정보가 저장이 안 되어있으면 throw error
      *
      * @return
-     * @throws UserPrincipalNotFoundException
      */
-    public Integer getCurrentUserId() throws UserPrincipalNotFoundException {
+    public Integer getCurrentUserId() {
         User user = threadLocal.get();
         if (user == null) {
-            throw new UserPrincipalNotFoundException("인증된 유저가 없습니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_REQUEST);
         }
 
         return user.getId();
@@ -49,12 +50,11 @@ public class ThreadLocalContext {
      * 2. 인증정보가 저장이 안 되어있으면 throw error
      *
      * @return
-     * @throws UserPrincipalNotFoundException
      */
-    public User getCurrentUser() throws UserPrincipalNotFoundException {
+    public User getCurrentUser() {
         User user = threadLocal.get();
         if (user == null) {
-            throw new UserPrincipalNotFoundException("인증된 유저가 없습니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_REQUEST);
         }
 
         return user;

@@ -1,9 +1,11 @@
 package boot.kakaotech.communitybe.post.service;
 
+import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import boot.kakaotech.communitybe.comment.repository.CommentRepository;
 import boot.kakaotech.communitybe.common.properties.PrefixProperty;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.common.util.KeyValueStore;
+import boot.kakaotech.communitybe.post.dto.PostDetailWrapper;
 import boot.kakaotech.communitybe.post.dto.PostListWrapper;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
@@ -13,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -48,6 +51,120 @@ public class PostServiceImpl implements PostService {
 
         CursorPage<PostListWrapper> response = createPostList(posts, size);
         return response;
+    }
+
+    /**
+     * post detail을 조회하는 메서드
+     * 1. 현재 요청한 유저id 조회
+     * 2. PostDetailWrapper 조회
+     *
+     * @param postId
+     * @return
+     */
+    @Override
+    public PostDetailWrapper getPost(int postId) {
+        log.info("[PostService] 게시글 상세조회 시작 - postId = {}", postId);
+
+        int userId = context.getCurrentUserId();
+        PostDetailWrapper post = makePostDetail(postId, userId);
+
+        return post;
+    }
+
+    /**
+     * PostDetailWrapper 조회 후 반환하는 메서드
+     * 1. DB에서 조회
+     * 2. 게시글 이미지들 추가
+     * 3. 작성자 추가
+     * 4. 댓글 추가
+     * 5. 조회수 증가
+     * 6. 반환
+     *
+     * @param postId
+     * @param userId
+     * @return
+     */
+    private PostDetailWrapper makePostDetail(int postId, int userId) {
+        PostDetailWrapper post = postRepository.getPostById(postId, userId);
+
+        if (post == null) {
+            return null;
+        }
+
+        setImageIntoPostDetail(post);
+        setAuthorIntoPostDetail(post);
+        setCommentsIntoPostDetail(post);
+        increaseViewCount(post);
+
+        return post;
+    }
+
+    /**
+     * PostDetailWrapper 내 게시글 이미지 추가하는 메서드
+     * 1. DB에서 이미지 조회
+     * 2. 이미지 별 presigned url 발급받아 post에 세팅
+     *
+     * @param post
+     */
+    private void setImageIntoPostDetail(PostDetailWrapper post) {
+        List<String> images = postRepository.getImages(post.getPost().getId());
+        post.getPost().setImages(new ArrayList<>());
+        images.stream().forEach(image -> {
+            String presignedUrl = ""; // TODO: GET용 presigned url 발급로직 추가
+            post.getPost().getImages().add(presignedUrl);
+        });
+    }
+
+    /**
+     * PostDetailWrapper 내 작성자 프로필이미지 presigned url 추가하는 메서드
+     *
+     * @param post
+     */
+    private void setAuthorIntoPostDetail(PostDetailWrapper post) {
+        String authorProfile = post.getAuthor().getProfileImageUrl();
+        post.getAuthor().setProfileImageUrl(
+                "" // TODO: author의 profileImage presigned url 발급로직 추가
+        );
+    }
+
+    /**
+     * PostDetailWrapper 내 댓글 추가하는 메서드
+     * 1. DB에서 댓글 조회
+     * 2. 댓글 작성자마다 프로필 presigned url 추가
+     * 3. post에 적재
+     *
+     * @param post
+     */
+    private void setCommentsIntoPostDetail(PostDetailWrapper post) {
+        Pageable pageable = PageRequest.of(0, 10);
+        List<CommentDto> comments = commentRepository.getComments(post.getPost().getId(), 0, pageable);
+        // DB에서 comment 조회
+        comments.stream().forEach(comment -> {
+            String profileImageUrl = comment.getProfileImageUrl();
+            comment.setProfileImageUrl("" /* TODO: 댓글 작성자의 profileImage presigned url 발급로직 */);
+        }); // List 돌면서 presigned url 발급
+        post.setComments(comments);
+    }
+
+    /**
+     * 조회수 증가시키는 메서드
+     * 1. kvStore 내 저장된거 확인
+     *
+     * @param post
+     */
+    private void increaseViewCount(PostDetailWrapper post) {
+        int postId = post.getPost().getId();
+        String key = property.getViewCount() + postId;
+
+        Integer viewCount = Integer.valueOf(kvStore.get(key)); // kvStore에서 조회
+        if (viewCount == null) { // kvStore에 없으면
+            viewCount = postRepository.findViewCountByPostId(postId).orElse(0);
+            // DB에서 조회하는데 없으면 0으로 초기화
+        }
+
+        kvStore.put(key, String.valueOf(++viewCount));
+        post.getPost().setViewCount(viewCount);
+        // kvStore에 추가 및 post에 적재
     }
 
     /**
