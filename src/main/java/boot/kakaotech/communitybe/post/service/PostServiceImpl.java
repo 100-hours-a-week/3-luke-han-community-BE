@@ -131,6 +131,27 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
+     * 게시글 삭제하는 메서드
+     * 1. 요청 보낸 유저 조회
+     * 2. 해당 게시글 조회
+     * 3. validation
+     * 4. deletedAt 세팅
+     *
+     * @param postId
+     */
+    @Override
+    @Transactional
+    public void softDeletePost(int postId) {
+        log.info("[PostService] 게시글 삭제 시작 - postId = {}", postId);
+
+        User user = context.getCurrentUser();
+        Post post = postRepository.findById(postId).orElse(null);
+        validator.validatePostAndAuthor(post, user);
+
+        post.setDeletedAt(LocalDateTime.now());
+    }
+
+    /**
      * 수정 요청을 보낸이에 대한 검증과 수정을 담당하는 메서드
      *
      * @param user

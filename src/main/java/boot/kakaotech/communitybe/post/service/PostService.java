@@ -16,4 +16,6 @@ public interface PostService {
 
     SavedPostDto updatePost(CreatePostDto createPostDto);
 
+    void softDeletePost(int postId);
+
 }

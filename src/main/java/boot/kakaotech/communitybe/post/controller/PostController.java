@@ -112,4 +112,24 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 게시글 삭제 API
+     *
+     * @param postId
+     * @return
+     */
+    @PatchMapping("/{postId}/status")
+    public ResponseEntity<CommonResponseDto<Void>> updatePostStatus(
+            @PathVariable("postId") Integer postId
+    ) {
+        log.info("[PostController] 게시글 삭제 시작");
+
+        postService.softDeletePost(postId);
+        CommonResponseDto<Void> response = responseMapper.createResponse(
+                "게시글 삭제 성공"
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
 }
