@@ -5,6 +5,7 @@ import boot.kakaotech.communitybe.auth.dto.SignupRequest;
 import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.post.entity.Post;
 import boot.kakaotech.communitybe.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -91,6 +92,14 @@ public class Validator {
         }
     }
 
+    public void validatePostAndAuthor(Post post, User user) {
+        if (post == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
 
+        if (!post.getAuthor().equals(user)) {
+            throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
+        }
+    }
 
 }

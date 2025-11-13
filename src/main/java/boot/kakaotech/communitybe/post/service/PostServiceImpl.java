@@ -5,6 +5,7 @@ import boot.kakaotech.communitybe.comment.repository.CommentRepository;
 import boot.kakaotech.communitybe.common.properties.PrefixProperty;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.common.util.KeyValueStore;
+import boot.kakaotech.communitybe.common.validation.Validator;
 import boot.kakaotech.communitybe.post.dto.CreatePostDto;
 import boot.kakaotech.communitybe.post.dto.PostDetailWrapper;
 import boot.kakaotech.communitybe.post.dto.PostListWrapper;
@@ -36,6 +37,7 @@ public class PostServiceImpl implements PostService {
 
     private final ThreadLocalContext context;
     private final KeyValueStore kvStore;
+    private final Validator validator;
 
     private final PrefixProperty property;
 
@@ -102,6 +104,55 @@ public class PostServiceImpl implements PostService {
                 .postId(post.getId())
                 .presignedUrls(presignedUrls)
                 .build();
+    }
+
+    /**
+     * 게시글 수정하는 메서드
+     * 1. 요청에 대한 validation 후 title과 content 수정
+     * 2. 이미지 업로드는 Lambda로 진행할거라 이 부분 어떻게 처리할지 고민해야 함
+     *
+     * @param dto
+     * @return
+     */
+    @Override
+    @Transactional
+    public SavedPostDto updatePost(CreatePostDto dto) {
+        log.info("[PostService] 게시글 수정 시작 - postId: {}", dto.getId());
+
+        User user = context.getCurrentUser();
+        Post post = changePost(user, dto);
+
+        // TODO: 이미지 처리 람다로
+
+        return SavedPostDto.builder()
+                .postId(post.getId())
+                .presignedUrls(null)
+                .build();
+    }
+
+    /**
+     * 수정 요청을 보낸이에 대한 검증과 수정을 담당하는 메서드
+     *
+     * @param user
+     * @param dto
+     * @return
+     */
+    private Post changePost(User user, CreatePostDto dto) {
+        Post post = postRepository.findById(dto.getId()).orElse(null);
+        validator.validatePostAndAuthor(post, user);
+
+        String title = dto.getTitle();
+        String content = dto.getContent();
+
+        if (title != null) {
+            post.setTitle(title);
+        }
+
+        if (content != null) {
+            post.setContent(content);
+        }
+
+        return post;
     }
 
     /**

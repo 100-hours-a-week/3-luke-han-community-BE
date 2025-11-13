@@ -15,8 +15,10 @@ public enum ErrorCode {
     UNAUTHORIZED_REQUEST(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다."), // 인증이 없는 요청일 때
 
     INVALID_USERINFO(HttpStatus.UNAUTHORIZED, "이메일 혹은 비밀번호가 틀렸습니다."), // 이메일 혹은 비밀번호가 틀렸을 때
+    REQUEST_FROM_OTHERS(HttpStatus.FORBIDDEN, "작성자가 보낸 요청이 아닙니다."),
 
-    INVALID_FORMAT(HttpStatus.BAD_REQUEST, "형식에 맞지 않은 요청입니다.") // 요청 DTO 형식이 맞지 않을 때
+    INVALID_FORMAT(HttpStatus.BAD_REQUEST, "형식에 맞지 않은 요청입니다."), // 요청 DTO 형식이 맞지 않을 때
+    ILLEGAL_ARGUMENT(HttpStatus.BAD_REQUEST, "데이터가 존재하지 않습니다.")
     ;
 
     private final HttpStatus status;

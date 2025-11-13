@@ -68,6 +68,12 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 게시글 생성 API
+     *
+     * @param createPostDto
+     * @return
+     */
     @PostMapping
     public ResponseEntity<CommonResponseDto<SavedPostDto>> post(
             @RequestBody CreatePostDto createPostDto
@@ -81,6 +87,29 @@ public class PostController {
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * 게시글 수정 API
+     *
+     * @param postId
+     * @param createPostDto
+     * @return
+     */
+    @PatchMapping("/{postId}")
+    public ResponseEntity<CommonResponseDto<SavedPostDto>> updatePost(
+            @PathVariable("postId") Integer postId,
+            @RequestBody CreatePostDto createPostDto
+    ) {
+        log.info("[PostController] 게시글 수정 시작");
+        createPostDto.setId(postId);
+        SavedPostDto res = postService.updatePost(createPostDto);
+        CommonResponseDto<SavedPostDto> response = responseMapper.createResponse(
+                res,
+                "게시글 수정 성공"
+        );
+
+        return ResponseEntity.ok(response);
     }
 
 }
