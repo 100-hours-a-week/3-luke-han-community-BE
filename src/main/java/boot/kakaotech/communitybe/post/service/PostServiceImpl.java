@@ -5,18 +5,26 @@ import boot.kakaotech.communitybe.comment.repository.CommentRepository;
 import boot.kakaotech.communitybe.common.properties.PrefixProperty;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.common.util.KeyValueStore;
+import boot.kakaotech.communitybe.post.dto.CreatePostDto;
 import boot.kakaotech.communitybe.post.dto.PostDetailWrapper;
 import boot.kakaotech.communitybe.post.dto.PostListWrapper;
+import boot.kakaotech.communitybe.post.dto.SavedPostDto;
+import boot.kakaotech.communitybe.post.entity.Post;
+import boot.kakaotech.communitybe.post.entity.PostImage;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
+import boot.kakaotech.communitybe.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -69,6 +77,71 @@ public class PostServiceImpl implements PostService {
         PostDetailWrapper post = makePostDetail(postId, userId);
 
         return post;
+    }
+
+    /**
+     * 게시글 저장하는 메서드
+     *
+     * @param dto
+     * @return
+     */
+    @Override
+    @Transactional
+    public SavedPostDto savePost(CreatePostDto dto) {
+        log.info("[PostService] 게시글 생성 시작");
+
+        User author = context.getCurrentUser();
+        Post post = createPost(author, dto);
+
+        List<PostImage> imagesList = new ArrayList<>();
+        List<String> presignedUrls = new ArrayList<>();
+
+        changeAndSetImages(post, presignedUrls, imagesList, dto.getImages());
+
+        return SavedPostDto.builder()
+                .postId(post.getId())
+                .presignedUrls(presignedUrls)
+                .build();
+    }
+
+    /**
+     * Post 엔티티 생성해서 저장 후 id까지 반환하는 메서드
+     *
+     * @param author
+     * @param dto
+     * @return
+     */
+    private Post createPost(User author, CreatePostDto dto) {
+        Post post = Post.builder()
+                .author(author)
+                .title(dto.getTitle())
+                .content(dto.getContent())
+                .viewCount(0)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        postRepository.saveAndFlush(post);
+        return post;
+    }
+
+    /**
+     * 이미지 파일명으로 PostImage 엔티티 생성 및 presigned url 발급하는 로직
+     * - 근데 lambda로 이미지 업로드 구현하면 이 부분은 필요없을지도
+     *
+     * @param post
+     * @param presignedUrls
+     * @param imagesList
+     * @param images
+     */
+    private void changeAndSetImages(Post post, List<String> presignedUrls, List<PostImage> imagesList, List<String> images) {
+        images.stream().forEach(image -> {
+            String imageKey = "post:" + post.getId() + ":" + UUID.randomUUID() + ":" + image;
+            imagesList.add(PostImage.builder().post(post).imageKey(imageKey).build());
+            presignedUrls.add("" /* TODO: presigned url 생성 로직 추가 */);
+            // 근데 아마 이거 올리는거 lambda 쓰면 이거 없어도 될지도
+        });
+
+        post.setImages(imagesList);
     }
 
     /**
