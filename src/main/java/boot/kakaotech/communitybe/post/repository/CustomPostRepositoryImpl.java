@@ -42,7 +42,7 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                         Projections.fields(SimpUserInfo.class,
                                 user.id,
                                 user.nickname.as("name"),
-                                user.profileImageUrl)
+                                user.profileImageKey)
                         .as("author")
                 ))
                 .from(post)
@@ -51,7 +51,7 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                 .leftJoin(post.comments, comment)
                 .groupBy(
                         post.id, post.title, post.viewCount, post.createdAt,
-                        user.id, user.nickname, user.profileImageUrl
+                        user.id, user.nickname, user.profileImageKey
                 )
                 .orderBy(post.createdAt.desc())
                 .offset(pageable.getOffset())
@@ -78,7 +78,7 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                                 Projections.fields(SimpUserInfo.class,
                                         user.id,
                                         user.nickname.as("name"),
-                                        user.profileImageUrl
+                                        user.profileImageKey
                                         ).as("author"),
                                 Projections.fields(PostDetailDto.class,
                                         post.id,
@@ -99,7 +99,7 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                 .leftJoin(post.comments, comment)
                 .groupBy(
                         post.id, post.title, post.viewCount, post.createdAt,
-                        user.id, user.nickname, user.profileImageUrl
+                        user.id, user.nickname, user.profileImageKey
                 )
                 .where(post.id.eq(postId))
                 .fetchOne();

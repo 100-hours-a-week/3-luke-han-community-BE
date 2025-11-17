@@ -104,7 +104,7 @@ public class AuthServiceImpl implements AuthService {
                 response,
                 jwtProperty.getName().getRefreshToken(),
                 refreshToken,
-                (int) jwtProperty.getTime().getRefreshTokenExpireTime() / 1000);
+                (int) jwtProperty.getExpireTime().getRefreshTokenExpireTime() / 1000);
         // 쿠키에 넣기
         response.addHeader(jwtProperty.getAuthorization(), "Bearer " + accessToken);
         // Authorization 헤더에 넣기

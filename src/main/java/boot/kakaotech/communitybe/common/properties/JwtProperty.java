@@ -3,6 +3,7 @@ package boot.kakaotech.communitybe.common.properties;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.PropertySource;
 
 import java.util.List;
 
@@ -13,7 +14,7 @@ public class JwtProperty {
 
     private String secret;
     private Name name;
-    private ExpireTime time;
+    private ExpireTime expireTime;
     private String authorization;
     private List<String> excludedPatterns;
 

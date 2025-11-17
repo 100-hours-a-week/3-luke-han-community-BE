@@ -14,6 +14,7 @@ import boot.kakaotech.communitybe.common.util.CookieUtil;
 import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.ExpiredJwtException;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,11 +46,16 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final CommonResponseMapper responseMapper;
 
-    private final List<PathPattern> excludedPatterns = jwtProperty.getExcludedPatterns()
-                    .stream()
-                    .map(parser::parse)
-                    .toList();
+    private List<PathPattern> excludedPatterns;
     private final JwtProvider jwtProvider;
+
+    @PostConstruct
+    private void init() {
+        this.excludedPatterns = jwtProperty.getExcludedPatterns()
+                .stream()
+                .map(parser::parse)
+                .toList();
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -82,7 +88,7 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
 
             String newAccessToken = jwtProvider.generateToken(context.getCurrentUser(), TokenName.ACCESS_TOKEN);
             response.setHeader(jwtProperty.getAuthorization(), "Bearer " + newAccessToken);
-            cookieUtil.addCookie(response, jwtProperty.getName().getRefreshToken(), refreshToken, (int) jwtProperty.getTime().getRefreshTokenExpireTime() / 1000);
+            cookieUtil.addCookie(response, jwtProperty.getName().getRefreshToken(), refreshToken, (int) jwtProperty.getExpireTime().getRefreshTokenExpireTime() / 1000);
         }
 
         filterChain.doFilter(request, response);

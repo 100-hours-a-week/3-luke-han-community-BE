@@ -30,8 +30,8 @@ public class JwtProvider {
     public String generateToken(User user, TokenName name) {
         long expirationTime = name.equals(
                 TokenName.ACCESS_TOKEN) ?
-                jwtProperty.getTime().getAccessTokenExpireTime() :
-                jwtProperty.getTime().getRefreshTokenExpireTime();
+                jwtProperty.getExpireTime().getAccessTokenExpireTime() :
+                jwtProperty.getExpireTime().getRefreshTokenExpireTime();
 
         return Jwts.builder()
                 .subject(String.valueOf(user.getId()))

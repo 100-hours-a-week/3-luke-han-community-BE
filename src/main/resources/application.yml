@@ -29,7 +29,7 @@ jwt:
   name:
     access_token: "access_token"
     refresh_token: "refresh_token"
-  expire_time:
+  expire-time:
     access-token-expire-time: "${ACCESS_TOKEN_EXPIRE_TIME}"
     refresh-token-expire-time: "${REFRESH_TOKEN_EXPIRE_TIME}"
   authorization: "Authorization"

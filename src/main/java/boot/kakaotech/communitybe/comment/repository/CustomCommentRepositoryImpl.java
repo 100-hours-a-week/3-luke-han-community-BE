@@ -36,7 +36,7 @@ public class CustomCommentRepositoryImpl implements CustomCommentRepository {
                         comment.id,
                         user.id.as("userId"),
                         user.nickname.as("name"),
-                        user.profileImageUrl,
+                        user.profileImageKey,
                         comment.content.as("comment"),
                         comment.parentComment.id.as("parentId"),
                         comment.depth,
