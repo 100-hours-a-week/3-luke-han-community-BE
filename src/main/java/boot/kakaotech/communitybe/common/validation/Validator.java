@@ -6,6 +6,7 @@ import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.post.entity.Post;
+import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 public class Validator {
 
     private final PasswordEncoder passwordEncoder;
+    private final PostRepository postRepository;
 
     /**
      * 이메일과 패스워드 validation하는 메서드
@@ -92,6 +94,13 @@ public class Validator {
         }
     }
 
+    /**
+     * 게시글과 작성자에 대한 validation 하는 메서드
+     * 존재하지 않는 게시글이거나 게시글 작성자가 아니면 에러
+     *
+     * @param post
+     * @param user
+     */
     public void validatePostAndAuthor(Post post, User user) {
         if (post == null) {
             throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
@@ -100,6 +109,16 @@ public class Validator {
         if (!post.getAuthor().equals(user)) {
             throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
         }
+    }
+
+    public Post validatePostByIdAndReturn(Integer postId) {
+        Post post = postRepository.findById(postId).orElse(null);
+
+        if (post == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        return post;
     }
 
 }
