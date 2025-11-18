@@ -2,6 +2,7 @@ package boot.kakaotech.communitybe.user.controller;
 
 import boot.kakaotech.communitybe.common.CommonResponseDto;
 import boot.kakaotech.communitybe.common.CommonResponseMapper;
+import boot.kakaotech.communitybe.user.dto.PasswordDto;
 import boot.kakaotech.communitybe.user.dto.SimpUserInfo;
 import boot.kakaotech.communitybe.user.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,24 @@ public class UserController {
 
         String presignedUrl = userService.updateUserInfo(userInfo);
         CommonResponseDto<String> response = mapper.createResponse(presignedUrl, "유저 프로필 수정 성공");
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 유저의 비밀번호를 변경하는 API
+     *
+     * @param password
+     * @return
+     */
+    @PatchMapping("/password")
+    public ResponseEntity<CommonResponseDto<Void>> updatePassword(
+            @RequestBody PasswordDto password
+            ) {
+        log.info("[UserController] 비밀번호 변경 시작 - userId: {}", password.getUserId());
+
+        userService.updatePassword(password);
+        CommonResponseDto<Void> response = mapper.createResponse("비밀번호 변경 성공");
 
         return ResponseEntity.ok(response);
     }

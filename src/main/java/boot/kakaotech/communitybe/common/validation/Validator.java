@@ -9,6 +9,7 @@ import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.post.entity.Post;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
+import boot.kakaotech.communitybe.user.dto.PasswordDto;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -163,6 +164,13 @@ public class Validator {
         return comment;
     }
 
+    /**
+     * 요청한 유저와 수정할 유저 일치하는지 validation하는 메서드
+     *
+     * @param requestUser
+     * @param userId
+     * @return
+     */
     public User validateUserInfo(User requestUser, Integer userId) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
@@ -171,6 +179,26 @@ public class Validator {
 
         if (!user.getId().equals(requestUser.getId())) {
             throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
+        }
+
+        return user;
+    }
+
+    /**
+     * 유저 확인 후 비밀번호 일치하는지 validation하는 메서드
+     *
+     * @param requestUser
+     * @param dto
+     * @return
+     */
+    public User validateNewPassword(User requestUser, PasswordDto dto) {
+        User user = userRepository.findById(dto.getUserId()).orElse(null);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.PASSWORD_NOT_MATCHED);
         }
 
         return user;

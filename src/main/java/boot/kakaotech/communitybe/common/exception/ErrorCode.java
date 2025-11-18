@@ -18,7 +18,8 @@ public enum ErrorCode {
     REQUEST_FROM_OTHERS(HttpStatus.FORBIDDEN, "작성자가 보낸 요청이 아닙니다."),
 
     INVALID_FORMAT(HttpStatus.BAD_REQUEST, "형식에 맞지 않은 요청입니다."), // 요청 DTO 형식이 맞지 않을 때
-    ILLEGAL_ARGUMENT(HttpStatus.BAD_REQUEST, "데이터가 존재하지 않습니다.")
+    ILLEGAL_ARGUMENT(HttpStatus.BAD_REQUEST, "데이터가 존재하지 않습니다."),
+    PASSWORD_NOT_MATCHED(HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."),
     ;
 
     private final HttpStatus status;
