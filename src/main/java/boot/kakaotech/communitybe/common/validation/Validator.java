@@ -2,6 +2,7 @@ package boot.kakaotech.communitybe.common.validation;
 
 import boot.kakaotech.communitybe.auth.dto.LoginRequest;
 import boot.kakaotech.communitybe.auth.dto.SignupRequest;
+import boot.kakaotech.communitybe.comment.entity.Comment;
 import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
@@ -111,6 +112,12 @@ public class Validator {
         }
     }
 
+    /**
+     * Post 존재하는지 validation하는 메서드
+     *
+     * @param postId
+     * @return
+     */
     public Post validatePostByIdAndReturn(Integer postId) {
         Post post = postRepository.findById(postId).orElse(null);
 
@@ -119,6 +126,22 @@ public class Validator {
         }
 
         return post;
+    }
+
+    /**
+     * 댓글과 작성자에 대해 validation하는 메서드
+     *
+     * @param comment
+     * @param user
+     */
+    public void validateCommentAndAuthor(Comment comment, User user) {
+        if (comment == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        if (!comment.getUser().equals(user)) {
+            throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
+        }
     }
 
 }

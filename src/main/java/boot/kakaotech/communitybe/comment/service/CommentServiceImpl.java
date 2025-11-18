@@ -1,5 +1,6 @@
 package boot.kakaotech.communitybe.comment.service;
 
+import boot.kakaotech.communitybe.auth.dto.ValueDto;
 import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import boot.kakaotech.communitybe.comment.dto.CreateCommentDto;
 import boot.kakaotech.communitybe.comment.entity.Comment;
@@ -8,13 +9,13 @@ import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
 import boot.kakaotech.communitybe.common.validation.Validator;
 import boot.kakaotech.communitybe.post.entity.Post;
-import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -76,6 +77,38 @@ public class CommentServiceImpl implements CommentService {
         commentRepository.save(comment);
 
         return comment.getId();
+    }
+
+    /**
+     * 댓글 수정하는 메서드
+     *
+     * @param commentId
+     * @param dto
+     */
+    @Override
+    @Transactional
+    public void updateComment(Integer commentId, ValueDto dto) {
+        log.info("[CommentService] 댓글 수정 시작 - commentId: {}", commentId);
+
+        User user = context.getCurrentUser();
+        Comment comment = changeComment(commentId, user, dto);
+    }
+
+    /**
+     * 수정 요청 받은 댓글에 대한 검증과 수정을 담당하는 메서드
+     *
+     * @param commentId
+     * @param user
+     * @param dto
+     * @return
+     */
+    private Comment changeComment(Integer commentId, User user, ValueDto dto) {
+        Comment comment = commentRepository.findById(commentId).orElse(null);
+        validator.validateCommentAndAuthor(comment, user);
+
+        comment.setContent(dto.getValue());
+
+        return comment;
     }
 
     /**

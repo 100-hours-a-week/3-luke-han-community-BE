@@ -1,5 +1,6 @@
 package boot.kakaotech.communitybe.comment.controller;
 
+import boot.kakaotech.communitybe.auth.dto.ValueDto;
 import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import boot.kakaotech.communitybe.comment.dto.CreateCommentDto;
 import boot.kakaotech.communitybe.comment.service.CommentService;
@@ -65,6 +66,20 @@ public class CommentController {
         CommonResponseDto<Integer> response = mapper.createResponse(commentId, "댓글 생성 성공");
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PatchMapping("/posts/{postId}/comments/{commentId}")
+    public ResponseEntity<CommonResponseDto<Void>> updateComment(
+            @PathVariable("postId") Integer postId,
+            @PathVariable("commentId") Integer commentId,
+            @RequestBody ValueDto dto
+            ) {
+        log.info("[CommentController] 댓글 수정 시작 - postId: {}, commentId: {}", postId, commentId);
+
+        commentService.updateComment(commentId, dto);
+        CommonResponseDto<Void> response = mapper.createResponse("댓글 수정 성공");
+
+        return ResponseEntity.ok(response);
     }
 
 }
