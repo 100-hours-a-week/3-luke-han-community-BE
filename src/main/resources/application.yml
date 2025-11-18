@@ -33,13 +33,14 @@ jwt:
     access-token-expire-time: "${ACCESS_TOKEN_EXPIRE_TIME}"
     refresh-token-expire-time: "${REFRESH_TOKEN_EXPIRE_TIME}"
   authorization: "Authorization"
-  excluded-patterns:
-    - "/api/auth/**"
-    - "/terms"
-    - "/privacy"
+  excluded-patterns: "${JWT_EXCLUDED_PATTERNS}"
 
-frontend:
-  url: "${FRONTEND_URL}"
+cors:
+  frontend: "${FRONTEND_URL}"
+  methods: "${CORS_ALLOWED_METHODS}"
+  allowed-headers: "${CORS_ALLOWED_HEADERS}"
+  exposed-headers: "${CORS_EXPOSED_HEADERS}"
+  age: "${CORS_MAX_AGE}"
 
 cloud:
   aws:

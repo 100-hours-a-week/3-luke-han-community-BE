@@ -155,10 +155,14 @@ public class Validator {
      * @param commentId
      * @return
      */
-    public Comment validateCommentByIdAndReturn(Integer commentId) {
+    public Comment validateCommentByIdAndReturn(Integer commentId, User user) {
         Comment comment = commentRepository.findById(commentId).orElse(null);
         if (comment == null) {
             throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        if (!comment.getUser().equals(user)) {
+            throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
         }
 
         return comment;

@@ -1,6 +1,8 @@
 package boot.kakaotech.communitybe.user.service;
 
 import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
+import boot.kakaotech.communitybe.common.properties.S3Property;
+import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
 import boot.kakaotech.communitybe.common.validation.Validator;
 import boot.kakaotech.communitybe.user.dto.PasswordDto;
@@ -22,6 +24,8 @@ public class UserServiceImpl implements UserService {
     private final ThreadLocalContext context;
     private final PasswordEncoder passwordEncoder;
     private final Validator validator;
+    private final S3Service s3Service;
+    private final S3Property s3Property;
 
     /**
      * 유저 프로필 정보 업데이트하는 메서드
@@ -38,7 +42,12 @@ public class UserServiceImpl implements UserService {
         User user = validator.validateUserInfo(requestUser, userInfo.getId());
 
         user.setNickname(userInfo.getName());
-        String presignedUrl = ""; // TODO: 프로필 사진 바뀌었다면 presigned url 발급로직 추가
+        String presignedUrl = null;
+        String profileImageUrl = userInfo.getProfileImageUrl();
+        if (profileImageUrl != null) {
+            String key = s3Service.makeUserProfileKey(user.getEmail(), profileImageUrl);
+            presignedUrl = s3Service.createPUTPresignedUrl(s3Property.getS3().getBucket(), key);
+        }
 
         userRepository.save(user);
 

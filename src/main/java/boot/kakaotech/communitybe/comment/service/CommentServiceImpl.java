@@ -5,6 +5,8 @@ import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import boot.kakaotech.communitybe.comment.dto.CreateCommentDto;
 import boot.kakaotech.communitybe.comment.entity.Comment;
 import boot.kakaotech.communitybe.comment.repository.CommentRepository;
+import boot.kakaotech.communitybe.common.properties.S3Property;
+import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
 import boot.kakaotech.communitybe.common.validation.Validator;
@@ -29,6 +31,8 @@ public class CommentServiceImpl implements CommentService {
     private final Validator validator;
 
     private final ThreadLocalContext context;
+    private final S3Service s3Service;
+    private final S3Property s3Property;
 
     /**
      * 무한스크롤링 적용된 댓글 리스트 조회하는 메서드
@@ -100,7 +104,7 @@ public class CommentServiceImpl implements CommentService {
         log.info("[CommentService] 댓글 삭제 시작 - commentId: {}", commentId);
 
         User user = context.getCurrentUser();
-        Comment comment = validator.validateCommentByIdAndReturn(commentId);
+        Comment comment = validator.validateCommentByIdAndReturn(commentId, user);
 
         comment.setDeletedAt(LocalDateTime.now());
     }
@@ -148,7 +152,7 @@ public class CommentServiceImpl implements CommentService {
     private void setImagesIntoList(List<CommentDto> comments) {
         comments.forEach(comment -> {
             String profileImageUrl = comment.getProfileImageUrl();
-            // TODO: presigned url 발급 메서드
+            comment.setProfileImageUrl(s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageUrl));
         });
     }
 

@@ -3,6 +3,8 @@ package boot.kakaotech.communitybe.post.service;
 import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import boot.kakaotech.communitybe.comment.repository.CommentRepository;
 import boot.kakaotech.communitybe.common.properties.PrefixProperty;
+import boot.kakaotech.communitybe.common.properties.S3Property;
+import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.common.util.KeyValueStore;
 import boot.kakaotech.communitybe.common.validation.Validator;
@@ -40,6 +42,8 @@ public class PostServiceImpl implements PostService {
     private final Validator validator;
 
     private final PrefixProperty property;
+    private final S3Service s3Service;
+    private final S3Property s3Property;
 
     /**
      * 게시글 목록 조회하는 메서드
@@ -122,11 +126,11 @@ public class PostServiceImpl implements PostService {
         User user = context.getCurrentUser();
         Post post = changePost(user, dto);
 
-        // TODO: 이미지 처리 람다로
+        List<String> presignedUrls = makePresignedUrls(post, dto);
 
         return SavedPostDto.builder()
                 .postId(post.getId())
-                .presignedUrls(null)
+                .presignedUrls(presignedUrls)
                 .build();
     }
 
@@ -149,6 +153,32 @@ public class PostServiceImpl implements PostService {
         validator.validatePostAndAuthor(post, user);
 
         post.setDeletedAt(LocalDateTime.now());
+    }
+
+    private List<String> makePresignedUrls(Post post, CreatePostDto dto) {
+        List<String> presignedUrls = new ArrayList<>();
+        List<String> images = dto.getImages();
+
+        if (!dto.getIsImageChanged()) {
+            return null;
+        }
+
+        post.clearImages();
+        if (images != null && !images.isEmpty()) {
+            for (String originalFileName : images) {
+                if (originalFileName == null || originalFileName.isEmpty()) {
+                    continue;
+                }
+
+                String key = s3Service.makePostKey(post.getId(), originalFileName);
+                PostImage newImage = PostImage.builder().post(post).imageKey(key).build();
+                post.addImage(newImage);
+
+                presignedUrls.add(s3Service.createPUTPresignedUrl(s3Property.getS3().getBucket(), key));
+            }
+        }
+
+        return presignedUrls;
     }
 
     /**
@@ -207,10 +237,9 @@ public class PostServiceImpl implements PostService {
      */
     private void changeAndSetImages(Post post, List<String> presignedUrls, List<PostImage> imagesList, List<String> images) {
         images.stream().forEach(image -> {
-            String imageKey = "post:" + post.getId() + ":" + UUID.randomUUID() + ":" + image;
+            String imageKey = s3Service.makePostKey(post.getId(), image);
             imagesList.add(PostImage.builder().post(post).imageKey(imageKey).build());
-            presignedUrls.add("" /* TODO: presigned url 생성 로직 추가 */);
-            // 근데 아마 이거 올리는거 lambda 쓰면 이거 없어도 될지도
+            presignedUrls.add(s3Service.createPUTPresignedUrl(s3Property.getS3().getBucket(), imageKey));
         });
 
         post.setImages(imagesList);
@@ -255,7 +284,8 @@ public class PostServiceImpl implements PostService {
         List<String> images = postRepository.getImages(post.getPost().getId());
         post.getPost().setImages(new ArrayList<>());
         images.stream().forEach(image -> {
-            String presignedUrl = ""; // TODO: GET용 presigned url 발급로직 추가
+            String key = s3Service.makePostKey(post.getPost().getId(), image);
+            String presignedUrl = s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), key);
             post.getPost().getImages().add(presignedUrl);
         });
     }
@@ -268,7 +298,7 @@ public class PostServiceImpl implements PostService {
     private void setAuthorIntoPostDetail(PostDetailWrapper post) {
         String authorProfile = post.getAuthor().getProfileImageUrl();
         post.getAuthor().setProfileImageUrl(
-                "" // TODO: author의 profileImage presigned url 발급로직 추가
+                s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), authorProfile)
         );
     }
 
@@ -286,7 +316,7 @@ public class PostServiceImpl implements PostService {
         // DB에서 comment 조회
         comments.stream().forEach(comment -> {
             String profileImageUrl = comment.getProfileImageUrl();
-            comment.setProfileImageUrl("" /* TODO: 댓글 작성자의 profileImage presigned url 발급로직 */);
+            comment.setProfileImageUrl(s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageUrl));
         }); // List 돌면서 presigned url 발급
         post.setComments(comments);
     }
@@ -328,7 +358,11 @@ public class PostServiceImpl implements PostService {
             posts.removeLast();
         }
 
-        // TODO: GET용 presigned url 발급
+        posts.stream().forEach(post -> {
+            String profileImageKey = post.getAuthor().getProfileImageUrl();
+
+            post.getAuthor().setProfileImageUrl(s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageKey));
+        });
 
         return CursorPage.<PostListWrapper>builder()
                 .list(posts)

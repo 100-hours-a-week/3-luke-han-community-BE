@@ -6,4 +6,8 @@ public interface S3Service {
 
     String createPUTPresignedUrl(String bucketName, String keyName);
 
+    String makeUserProfileKey(String email, String profileImageName);
+
+    String makePostKey(Integer postId, String fileName);
+
 }

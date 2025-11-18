@@ -8,6 +8,8 @@ import boot.kakaotech.communitybe.auth.jwt.JwtProvider;
 import boot.kakaotech.communitybe.auth.jwt.TokenName;
 import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
 import boot.kakaotech.communitybe.common.properties.JwtProperty;
+import boot.kakaotech.communitybe.common.properties.S3Property;
+import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.common.validation.Validator;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
@@ -37,6 +39,8 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
 
     private final JwtProperty jwtProperty;
+    private final S3Property s3Property;
+    private final S3Service s3Service;
 
     /**
      * 회원가입 서비스 메서드
@@ -58,8 +62,8 @@ public class AuthServiceImpl implements AuthService {
         validator.validateSignup(request);
         // 요청값 검증
 
-        // TODO: 키 만드는거 메서드로 빼기
-        String key = "user:" + request.getEmail() + ":" + UUID.randomUUID() + ":" + request.getProfileImageName();
+        boolean hasProfileImage = request.getProfileImageName() != null;
+        String key = hasProfileImage ?  s3Service.makeUserProfileKey(request.getEmail(), request.getProfileImageName()) : null;
 
         User user = User.builder()
                 .email(request.getEmail())
@@ -70,7 +74,11 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         userRepository.save(user); // 생성 시 save() 호출해야함
-        String presignedURl = ""; // TODO: S3에서 PUT용 presigned url 발급
+
+        String presignedURl = null;
+        if (hasProfileImage) {
+            presignedURl = s3Service.createPUTPresignedUrl(s3Property.getS3().getBucket(), key);
+        }
 
         return presignedURl;
     }
@@ -109,7 +117,7 @@ public class AuthServiceImpl implements AuthService {
         response.addHeader(jwtProperty.getAuthorization(), "Bearer " + accessToken);
         // Authorization 헤더에 넣기
 
-        String presignedUrl = ""; // TODO: GET용 presigned url 생성
+        String presignedUrl = s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), user.getProfileImageKey());
 
         return LoginResponse.builder()
                 .userId(user.getId())

@@ -12,6 +12,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.time.Duration;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -57,6 +58,16 @@ public class S3ServiceImpl implements S3Service {
         log.info("HttpMethod: {}", presignedRequest.httpRequest().method());
 
         return presignedRequest.url().toExternalForm();
+    }
+
+    @Override
+    public String makeUserProfileKey(String email, String profileImageName) {
+        return "user:" + email + ":" + UUID.randomUUID() + ":" + profileImageName;
+    }
+
+    @Override
+    public String makePostKey(Integer postId, String fileName) {
+        return "post:" + postId + ":" + UUID.randomUUID() + ":" + fileName;
     }
 
 }
