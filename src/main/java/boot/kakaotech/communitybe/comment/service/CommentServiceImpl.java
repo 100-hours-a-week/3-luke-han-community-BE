@@ -94,6 +94,17 @@ public class CommentServiceImpl implements CommentService {
         Comment comment = changeComment(commentId, user, dto);
     }
 
+    @Override
+    @Transactional
+    public void softDeleteComment(Integer commentId) {
+        log.info("[CommentService] 댓글 삭제 시작 - commentId: {}", commentId);
+
+        User user = context.getCurrentUser();
+        Comment comment = validator.validateCommentByIdAndReturn(commentId);
+
+        comment.setDeletedAt(LocalDateTime.now());
+    }
+
     /**
      * 수정 요청 받은 댓글에 대한 검증과 수정을 담당하는 메서드
      *

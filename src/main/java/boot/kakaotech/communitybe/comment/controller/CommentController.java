@@ -68,6 +68,14 @@ public class CommentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    /**
+     * 댓글 수정하는 API
+     *
+     * @param postId
+     * @param commentId
+     * @param dto
+     * @return
+     */
     @PatchMapping("/posts/{postId}/comments/{commentId}")
     public ResponseEntity<CommonResponseDto<Void>> updateComment(
             @PathVariable("postId") Integer postId,
@@ -78,6 +86,26 @@ public class CommentController {
 
         commentService.updateComment(commentId, dto);
         CommonResponseDto<Void> response = mapper.createResponse("댓글 수정 성공");
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 댓글 삭제하는 API
+     *
+     * @param postId
+     * @param commentId
+     * @return
+     */
+    @PatchMapping("/posts/{postId}/comments/{commentId}/status")
+    public ResponseEntity<CommonResponseDto<Void>> updateCommentStatus(
+            @PathVariable("postId") Integer postId,
+            @PathVariable("commentId") Integer commentId
+    ) {
+        log.info("[CommentController] 댓글 삭제 시작 - postId: {}, commentId: {}", postId, commentId);
+
+        commentService.softDeleteComment(commentId);
+        CommonResponseDto<Void> response = mapper.createResponse("댓글 삭제 성공");
 
         return ResponseEntity.ok(response);
     }

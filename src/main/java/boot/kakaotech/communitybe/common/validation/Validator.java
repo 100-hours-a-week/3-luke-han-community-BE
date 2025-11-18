@@ -3,6 +3,7 @@ package boot.kakaotech.communitybe.common.validation;
 import boot.kakaotech.communitybe.auth.dto.LoginRequest;
 import boot.kakaotech.communitybe.auth.dto.SignupRequest;
 import boot.kakaotech.communitybe.comment.entity.Comment;
+import boot.kakaotech.communitybe.comment.repository.CommentRepository;
 import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
@@ -20,6 +21,7 @@ public class Validator {
 
     private final PasswordEncoder passwordEncoder;
     private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
 
     /**
      * 이메일과 패스워드 validation하는 메서드
@@ -142,6 +144,15 @@ public class Validator {
         if (!comment.getUser().equals(user)) {
             throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
         }
+    }
+
+    public Comment validateCommentByIdAndReturn(Integer commentId) {
+        Comment comment = commentRepository.findById(commentId).orElse(null);
+        if (comment == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        return comment;
     }
 
 }
