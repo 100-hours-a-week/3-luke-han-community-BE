@@ -8,10 +8,7 @@ import boot.kakaotech.communitybe.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
@@ -55,6 +52,16 @@ public class UserController {
 
         userService.updatePassword(password);
         CommonResponseDto<Void> response = mapper.createResponse("비밀번호 변경 성공");
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/images")
+    public ResponseEntity<CommonResponseDto<String>> getMyProfileImageUrl() {
+        log.info("[UserController] 프로필 이미지 조회 시작");
+
+        String url = userService.getMyPresignedUrl();
+        CommonResponseDto<String> response = mapper.createResponse(url, "presigned url 생성 성공");
 
         return ResponseEntity.ok(response);
     }

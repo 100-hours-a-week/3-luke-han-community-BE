@@ -21,6 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.server.PathContainer;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.pattern.PathPattern;
@@ -60,39 +61,50 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         log.info("[JwtVerificationFilter] 토큰 검증 시작");
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String accessToken = getAuthHeader(request);
-        if (accessToken == null) {
-            setErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, ErrorCode.INVALID_TOKEN, "잘못된 access token입니다.");
-            return;
-        }
-
         try {
-            processAccessToken(accessToken, response);
-        } catch (ExpiredJwtException e) {
-            log.info("[JwtVerificationFilter] Access Token 만료");
-
-            String refreshToken = cookieUtil
-                    .getCookie(request, jwtProperty.getName()
-                    .getRefreshToken())
-                    .getValue();
-
-            if (refreshToken == null || !handleExpiredAccessToken(response, refreshToken)) {
-                setErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, ErrorCode.INVALID_TOKEN, "로그인이 필요한 사용자입니다.");
+            if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                filterChain.doFilter(request, response);
                 return;
             }
 
-            String newAccessToken = jwtProvider.generateToken(context.getCurrentUser(), TokenName.ACCESS_TOKEN);
-            response.setHeader(jwtProperty.getAuthorization(), "Bearer " + newAccessToken);
-            cookieUtil.addCookie(response, jwtProperty.getName().getRefreshToken(), refreshToken, (int) jwtProperty.getExpireTime().getRefreshTokenExpireTime() / 1000);
-        }
+            String accessToken = getAuthHeader(request);
+            if (accessToken == null) {
+                setErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, ErrorCode.INVALID_TOKEN, "잘못된 access token입니다.");
+                return;
+            }
 
-        filterChain.doFilter(request, response);
-        context.clear();
+            try {
+                processAccessToken(accessToken, response);
+            } catch (ExpiredJwtException e) {
+                log.info("[JwtVerificationFilter] Access Token 만료");
+
+                String refreshToken = cookieUtil
+                        .getCookie(request, jwtProperty.getName()
+                                .getRefreshToken())
+                        .getValue();
+
+                if (refreshToken == null || !handleExpiredAccessToken(response, refreshToken)) {
+                    setErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, ErrorCode.INVALID_TOKEN, "로그인이 필요한 사용자입니다.");
+                    return;
+                }
+
+                String newAccessToken = jwtProvider.generateToken(context.getCurrentUser(), TokenName.ACCESS_TOKEN);
+                response.setHeader(jwtProperty.getAuthorization(), "Bearer " + newAccessToken);
+                cookieUtil.addCookie(response, jwtProperty.getName().getRefreshToken(), refreshToken, (int) jwtProperty.getExpireTime().getRefreshTokenExpireTime() / 1000);
+            }
+
+            filterChain.doFilter(request, response);
+        } finally {
+            context.clear();
+        }
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        PathContainer container = PathContainer.parsePath(path);
+
+        return excludedPatterns.stream().anyMatch(p -> p.matches(container));
     }
 
     private boolean handleExpiredAccessToken(HttpServletResponse response, String refreshToken) throws IOException {

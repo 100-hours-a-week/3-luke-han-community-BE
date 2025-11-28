@@ -9,4 +9,6 @@ public interface UserService {
 
     void updatePassword(PasswordDto password);
 
+    String getMyPresignedUrl();
+
 }

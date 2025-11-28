@@ -107,6 +107,7 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
         return detail;
     }
 
+    @Override
     public List<String> getImages(int postId) {
         List<String> images = jpaQueryFactory
                 .select(postImage.imageKey)
@@ -116,5 +117,17 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
 
         return images;
     }
+
+    @Override
+    public int updateViewCountByPostId(Integer postId, Integer viewCount) {
+        long affectiveRows = jpaQueryFactory
+                .update(post)
+                .set(post.viewCount, post.viewCount.add(viewCount))
+                .where(post.id.eq(postId))
+                .execute();
+
+        return (int) affectiveRows;
+    }
+
 
 }

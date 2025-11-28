@@ -4,17 +4,22 @@ import boot.kakaotech.communitybe.common.CommonErrorDto;
 import boot.kakaotech.communitybe.common.CommonResponseMapper;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+@RestControllerAdvice
 @RequiredArgsConstructor
 @Slf4j
 public class GlobalExceptionHandler {
 
     private final CommonResponseMapper mapper;
+
+    private final ThreadLocalContext context;
 
     /**
      * Business Exception으로 감싼 에러 처리하는 핸들러
@@ -27,6 +32,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonErrorDto> handleBusinessException(BusinessException ex) {
         log.error(ex.getMessage());
 
+        context.clear(); // 에러 발생 시 메모리 누수 방지용
         CommonErrorDto response = mapper.createError(ex.getErrorCode(), ex.getMessage());
         return ResponseEntity.status(ex.getErrorCode().getStatus()).body(response);
     }
@@ -35,6 +41,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonErrorDto> handleRuntimeException(RuntimeException ex) {
         log.error(ex.getMessage());
 
+        context.clear();
         CommonErrorDto response = mapper.createError(ErrorCode.ILLEGAL_ARGUMENT, ex.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
@@ -43,6 +50,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonErrorDto> handleException(Exception ex) {
         log.error(ex.getMessage());
 
+        context.clear();
         CommonErrorDto response = mapper.createError(ErrorCode.ILLEGAL_ARGUMENT, ex.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }

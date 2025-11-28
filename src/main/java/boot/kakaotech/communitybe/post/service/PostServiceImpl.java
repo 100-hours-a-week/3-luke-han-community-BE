@@ -1,6 +1,7 @@
 package boot.kakaotech.communitybe.post.service;
 
 import boot.kakaotech.communitybe.comment.dto.CommentDto;
+import boot.kakaotech.communitybe.comment.dto.CommentThreadDto;
 import boot.kakaotech.communitybe.comment.repository.CommentRepository;
 import boot.kakaotech.communitybe.common.properties.PrefixProperty;
 import boot.kakaotech.communitybe.common.properties.S3Property;
@@ -33,6 +34,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class PostServiceImpl implements PostService {
+
+    private static final int PARENT_COMMENT_SIZE = 10;
+    private static final int CHILD_PREVIEW_SIZE   = 3;
 
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
@@ -311,14 +315,11 @@ public class PostServiceImpl implements PostService {
      * @param post
      */
     private void setCommentsIntoPostDetail(PostDetailWrapper post) {
-        Pageable pageable = PageRequest.of(0, 10);
-        List<CommentDto> comments = commentRepository.getComments(post.getPost().getId(), 0, pageable);
-        // DB에서 comment 조회
-        comments.stream().forEach(comment -> {
-            String profileImageUrl = comment.getProfileImageUrl();
-            comment.setProfileImageUrl(s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageUrl));
-        }); // List 돌면서 presigned url 발급
-        post.setComments(comments);
+        int postId = post.getPost().getId();
+
+        CursorPage<CommentThreadDto> threads = loadCommentThreadsForDetail(postId);
+
+        post.setComments(threads);
     }
 
     /**
@@ -331,14 +332,17 @@ public class PostServiceImpl implements PostService {
         int postId = post.getPost().getId();
         String key = property.getViewCount() + postId;
 
-        Integer viewCount = Integer.valueOf(kvStore.get(key)); // kvStore에서 조회
-        if (viewCount == null) { // kvStore에 없으면
-            viewCount = postRepository.findViewCountByPostId(postId).orElse(0);
-            // DB에서 조회하는데 없으면 0으로 초기화
+        String value = kvStore.get(key); // kvStore에서 조회
+        Integer viewCount;
+        Integer originalViewCount = postRepository.findViewCountByPostId(post.getPost().getId()).orElse(0);
+        if (value == null) { // kvStore에 없으면
+            viewCount = 0;
+        } else {
+            viewCount = Integer.parseInt(value);
         }
 
         kvStore.put(key, String.valueOf(++viewCount));
-        post.getPost().setViewCount(viewCount);
+        post.getPost().setViewCount(originalViewCount + viewCount);
         // kvStore에 추가 및 post에 적재
     }
 
@@ -358,7 +362,7 @@ public class PostServiceImpl implements PostService {
             posts.removeLast();
         }
 
-        posts.stream().forEach(post -> {
+        posts.forEach(post -> {
             String profileImageKey = post.getAuthor().getProfileImageUrl();
 
             post.getAuthor().setProfileImageUrl(s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageKey));
@@ -370,5 +374,132 @@ public class PostServiceImpl implements PostService {
                 .nextCursor(nextCursor)
                 .build();
     }
+
+    /**
+     * 부모 댓글과 함께 자식 댓글 최대 3개까지 담아 반환하는 메서드
+     * - 댓글 더보기 기능을 위해 추가
+     *
+     * @param postId
+     * @return
+     */
+    private CursorPage<CommentThreadDto> loadCommentThreadsForDetail(int postId) {
+        // 1) 부모 댓글 페이지 로드 (cursor 계산 포함)
+        ParentCommentPage parentPage = loadParentComments(postId);
+
+        // 2) 부모 리스트를 CommentThreadDto 리스트로 변환
+        List<CommentThreadDto> threads = buildThreadsForParents(postId, parentPage.parents());
+
+        // 3) 최종 CursorPage로 래핑
+        return toCommentCursorPage(threads, parentPage);
+    }
+
+    /**
+     * 부모(최상위) 댓글들을 조회하고, cursor/hasNext까지 계산하는 메서드
+     */
+    private ParentCommentPage loadParentComments(int postId) {
+        Pageable parentPageable = PageRequest.of(0, PARENT_COMMENT_SIZE + 1);
+
+        List<CommentDto> parents = commentRepository.getComments(postId, 0, parentPageable);
+
+        boolean hasNextParent = parents.size() > PARENT_COMMENT_SIZE;
+        Integer nextParentCursor = null;
+
+        if (hasNextParent) {
+            CommentDto last = parents.remove(parents.size() - 1);
+            nextParentCursor = last.getId();      // 다음 페이지용 cursor (id 기반)
+        }
+
+        // 부모 댓글 작성자 프로필 presigned 세팅
+        setImagesIntoList(parents);
+
+        return new ParentCommentPage(parents, hasNextParent, nextParentCursor);
+    }
+
+    /**
+     * 부모 댓글 리스트를 받아서 각 부모에 대한 CommentThreadDto를 생성하는 메서드
+     */
+    private List<CommentThreadDto> buildThreadsForParents(int postId, List<CommentDto> parents) {
+        List<CommentThreadDto> threads = new ArrayList<>();
+
+        for (CommentDto parent : parents) {
+            CommentThreadDto thread = buildSingleThread(postId, parent);
+            threads.add(thread);
+        }
+
+        return threads;
+    }
+
+    /**
+     * 하나의 부모 댓글에 대한 CommentThreadDto를 만드는 메서드
+     * - 자식 댓글 프리뷰 로드 + hasMoreChildren / childNextCursor 세팅
+     */
+    private CommentThreadDto buildSingleThread(int postId, CommentDto parent) {
+        ChildCommentPage childPage = loadChildPreview(postId, parent.getId());
+
+        return CommentThreadDto.builder()
+                .parent(parent)
+                .children(childPage.children())
+                .hasMoreChildren(childPage.hasMore())
+                .childNextCursor(childPage.nextCursor())
+                .build();
+    }
+
+    /**
+     * 특정 부모 댓글에 대한 자식 댓글(대댓글) 프리뷰를 로드하는 메서드
+     * - 최대 CHILD_PREVIEW_SIZE + 1개 조회해서 hasMoreChildren 결정
+     */
+    private ChildCommentPage loadChildPreview(int postId, Integer parentId) {
+        Pageable childPageable = PageRequest.of(0, CHILD_PREVIEW_SIZE + 1);
+
+        List<CommentDto> children = commentRepository.getComments(postId, parentId, childPageable);
+
+        boolean hasMoreChildren = children.size() > CHILD_PREVIEW_SIZE;
+        Integer childNextCursor = null;
+
+        if (hasMoreChildren) {
+            CommentDto lastChild = children.remove(children.size() - 1);
+            childNextCursor = lastChild.getId();
+        }
+
+        // 자식 댓글 작성자 프로필 presigned 세팅
+        setImagesIntoList(children);
+
+        return new ChildCommentPage(children, hasMoreChildren, childNextCursor);
+    }
+
+    /**
+     * CommentThreadDto 리스트와 부모 댓글 페이지 정보를 이용해 CursorPage로 포장하는 메서드
+     */
+    private CursorPage<CommentThreadDto> toCommentCursorPage(
+            List<CommentThreadDto> threads,
+            ParentCommentPage parentPage
+    ) {
+        return CursorPage.<CommentThreadDto>builder()
+                .list(threads)
+                .hasNextCursor(parentPage.hasNext())
+                .nextCursor(parentPage.nextCursor())
+                .build();
+    }
+
+    private void setImagesIntoList(List<CommentDto> comments) {
+        comments.forEach(comment -> {
+            String profileImageUrl = comment.getProfileImageUrl();
+            comment.setProfileImageUrl(
+                    s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageUrl)
+            );
+        });
+    }
+
+    private record ParentCommentPage(
+            List<CommentDto> parents,
+            boolean hasNext,
+            Integer nextCursor
+    ) {}
+
+    private record ChildCommentPage(
+            List<CommentDto> children,
+            boolean hasMore,
+            Integer nextCursor
+    ) {}
 
 }

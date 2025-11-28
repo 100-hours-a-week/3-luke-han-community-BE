@@ -70,4 +70,13 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
     }
 
+    @Override
+    public String getMyPresignedUrl() {
+        log.info("[UserService] 프로필 사진 조회 시작");
+
+        User requestUser = context.getCurrentUser();
+        String imageKey = requestUser.getProfileImageKey();
+        return imageKey == null ? null : s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), imageKey);
+    }
+
 }
