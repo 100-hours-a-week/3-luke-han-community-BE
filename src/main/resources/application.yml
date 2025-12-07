@@ -14,11 +14,6 @@ spring:
         use_sql_comments: true
         format_sql: true
 
-  data:
-    redis:
-      host: "${REDIS_HOST}"
-      port: "${REDIS_PORT}"
-
 logging:
   level:
     org.hibernate.sql: debug
