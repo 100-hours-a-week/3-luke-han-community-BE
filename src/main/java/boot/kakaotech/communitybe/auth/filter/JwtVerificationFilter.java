@@ -1,95 +1,100 @@
 package boot.kakaotech.communitybe.auth.filter;
 
-import boot.kakaotech.communitybe.auth.dto.CustomUserDetails;
-import boot.kakaotech.communitybe.auth.service.CustomUserDetailsService;
-import boot.kakaotech.communitybe.auth.service.JwtService;
+import boot.kakaotech.communitybe.auth.dto.Token;
+import boot.kakaotech.communitybe.auth.jwt.JwtProvider;
+import boot.kakaotech.communitybe.auth.jwt.JwtVerifier;
+import boot.kakaotech.communitybe.auth.jwt.TokenName;
+import boot.kakaotech.communitybe.common.CommonErrorDto;
+import boot.kakaotech.communitybe.common.CommonResponseMapper;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
-import boot.kakaotech.communitybe.util.CookieUtil;
+import boot.kakaotech.communitybe.common.properties.JwtProperty;
+import boot.kakaotech.communitybe.user.entity.User;
+import boot.kakaotech.communitybe.user.repository.UserRepository;
+import boot.kakaotech.communitybe.common.util.CookieUtil;
+import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.ExpiredJwtException;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.server.PathContainer;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JwtVerificationFilter extends OncePerRequestFilter {
 
-    private static final String AUTHORIZATION = "Authorization";
+    private final JwtProperty jwtProperty;
 
-    private final JwtService jwtService;
-    private final CustomUserDetailsService userDetailsService;
-
-    private final PathPatternParser patternParser = new PathPatternParser();
+    private final JwtVerifier verifier;
+    private final PathPatternParser parser = new PathPatternParser();
     private final CookieUtil cookieUtil;
+    private final ThreadLocalContext context;
 
-    private final List<PathPattern> excludedUrls = Arrays.asList(
-            "/api/auth/**",
-            "/terms",
-            "/privacy"
-//            "/api/**"
-    ).stream().map(patternParser::parse).toList();
+    private final UserRepository userRepository;
 
-    /**
-     * JWT 인가 처리
-     * 1. 헤더에서 acces token 꺼내기
-     * 2. 만료가 안 되었다면 SecurityContextHolder에 인증정보 추가 후 진행
-     * 3. 만료 시 refresh token 유효성검사 후 rtr 진행
-     *
-     * @param request
-     * @param response
-     * @param filterChain
-     * @throws ServletException
-     * @throws IOException
-     */
+    private final ObjectMapper objectMapper;
+    private final CommonResponseMapper responseMapper;
+
+    private List<PathPattern> excludedPatterns;
+    private final JwtProvider jwtProvider;
+
+    @PostConstruct
+    private void init() {
+        this.excludedPatterns = jwtProperty.getExcludedPatterns()
+                .stream()
+                .map(parser::parse)
+                .toList();
+        log.info("[JwtVerificationFilter] excludedPatterns raw = {}", jwtProperty.getExcludedPatterns());
+        excludedPatterns.forEach(p -> log.info("[JwtVerificationFilter] compiled pattern = {}", p));
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         log.info("[JwtVerificationFilter] 토큰 검증 시작");
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+        try {
+            if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
-        String authHeader = request.getHeader(AUTHORIZATION);
-        String accessToken = null;
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            accessToken = authHeader.substring(7);
-        }
+            String accessToken = getAuthHeader(request);
+            if (accessToken == null) {
+                log.info("[JwtVerificationFilter] Access Token 없음, rtr 시도");
 
-        if (accessToken != null) {
-            try {
-                processAccessToken(accessToken, response);
-            } catch (ExpiredJwtException e) {
-                log.info("[JwtVerificationFilter] Access token 만료");
-
-                String refreshToken = cookieUtil.getCookie(request, "refresh_token").getValue();
-                if (!handleExpiredAccessToken(response, refreshToken)) {
+                if (!tryAuthenticateWithRefresh(request, response)) {
+                    log.info("@@@@@@@@@@ false 나옴");
                     return;
                 }
-            }
-        }
+            } else {
+                try {
+                    processAccessToken(accessToken, response);
+                } catch (ExpiredJwtException e) {
+                    log.info("[JwtVerificationFilter] Access Token 만료");
 
-        log.info("[JwtVerificationFilter] 토큰 검증 성공");
-        log.info("[JwtVerificationFilter] start {} {}", request.getMethod(), request.getRequestURI());
-        filterChain.doFilter(request, response);
-        log.info("[JwtVerificationFilter] end {} {} {}", request.getMethod(), request.getRequestURI(),  response.getStatus());
+                    if (!tryAuthenticateWithRefresh(request, response)) {
+                        return;
+                    }
+                }
+            }
+
+            filterChain.doFilter(request, response);
+        } finally {
+            context.clear();
+        }
     }
 
     @Override
@@ -97,60 +102,127 @@ public class JwtVerificationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         PathContainer container = PathContainer.parsePath(path);
 
-        return excludedUrls.stream().anyMatch(p -> p.matches(container));
+        boolean skip = excludedPatterns.stream().anyMatch(p -> p.matches(container));
+        log.info("[JwtVerificationFilter] shouldNotFilter path={}, skip={}", path, skip);
+
+        return excludedPatterns.stream().anyMatch(p -> p.matches(container));
     }
 
-    /**
-     * SecurityContextHolder에 저장된 인증 정보가 없다면 새로 저장하는 메서드
-     *
-     * @param accessToken
-     * @param response
-     */
-    private void processAccessToken(String accessToken, HttpServletResponse response) {
-        String email = jwtService.getEmailFromToken(accessToken);
-
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails =  userDetailsService.loadUserByUsername(email);
-
-            if (jwtService.isValidAccessToken(accessToken, userDetails)) {
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+    private boolean tryAuthenticateWithRefresh(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        boolean ok = handleExpiredAccessToken(request, response);
+        if (!ok) {
+            setErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
+                    ErrorCode.INVALID_TOKEN, "로그인이 필요한 사용자입니다.");
+            return false;
         }
+        return true;
     }
 
-    /**
-     * access token 만료 시 rtr 진행하는 메서드
-     * - access token, refresh token 모두 새로 발급
-     *
-     * @param response
-     * @param refreshToken
-     */
-    private boolean handleExpiredAccessToken(HttpServletResponse response, String refreshToken) {
-        if (refreshToken == null) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    private boolean handleExpiredAccessToken(HttpServletRequest request, HttpServletResponse response) {
+        Cookie cookie = cookieUtil
+                .getCookie(request, jwtProperty.getName().getRefreshToken());
+
+        if (cookie == null) {
+            log.info("[JwtVerificationFilter] Refresh Token 쿠키가 없습니다.");
             return false;
         }
 
-        CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(
-                jwtService.getEmailFromToken(refreshToken)
-        );
+        String refreshToken = cookie.getValue();
 
-        Map<String, String> tokens = jwtService.rotateTokens(refreshToken, userDetails.getUser());
-        if (tokens != null) {
-            cookieUtil.addCookie(response, "refresh_token", tokens.get("refresh_token"), (int) (jwtService.getRefreshTokenExpireTime() / 1000));
-
-            response.setHeader(AUTHORIZATION, "Bearer " + tokens.get("access_token"));
-            processAccessToken(tokens.get("access_token"), response);
-            return true;
+        if (refreshToken == null) {
+            log.info("[JwtVerificationFilter] Refresh Token도 없습니다.");
+            return false;
         }
 
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        return false;
+        int userId = verifier.extractUserIdFromToken(refreshToken);
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            log.info("[JwtVerificationFilter] 해당 유저가 없습니다.");
+            return false;
+        }
+
+        try {
+            // RTR 수행
+            Token rotated = jwtProvider.rotateRefreshToken(refreshToken, user);
+
+            // 컨텍스트 세팅
+            context.set(user);
+
+            // 새 Access 토큰 헤더
+            response.setHeader(jwtProperty.getAuthorization(), "Bearer " + rotated.getAccessToken());
+
+            // 새 Refresh 토큰 쿠키
+            int maxAgeSec = (int)(jwtProperty.getExpireTime().getRefreshTokenExpireTime() / 1000);
+            cookieUtil.addCookie(
+                    response,
+                    jwtProperty.getName().getRefreshToken(),
+                    rotated.getRefreshToken(),
+                    maxAgeSec
+            );
+
+            return true;
+        } catch (BusinessException e) {
+            log.error("[JwtVerificationFilter] handleExpiredAccessToken", e);
+            return false;
+        }
+    }
+
+    /**
+     * Access Token 검증하고, 검증되었으면 thread local에 user 세팅하는 메서드
+     *
+     * @param accessToken
+     * @param response
+     * @throws IOException
+     */
+    private void processAccessToken(String accessToken, HttpServletResponse response) throws IOException {
+        int userId = verifier.extractUserIdFromToken(accessToken);
+        User user = userRepository.findById(userId).orElse(null);
+
+        if (user == null) {
+            setErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, ErrorCode.INVALID_TOKEN, "잘못된 access token입니다.");
+            return;
+        }
+
+        try {
+            verifier.isValidToken(accessToken, user);
+        } catch (BusinessException e) {
+            setErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, ErrorCode.INVALID_TOKEN, "잘못된 access token입니다.");
+        }
+
+        context.set(user);
+    }
+
+    /**
+     * request에서 access token 추출하여 반환하는 메서드
+     * 만약 토큰이 없거나 Bearer 로 시작하지 않으면 null 반환
+     *
+     * @param request
+     * @return
+     */
+    private String getAuthHeader(HttpServletRequest request) {
+        String authHeader = request.getHeader(jwtProperty.getAuthorization());
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+
+        return authHeader.substring(7);
+    }
+
+    /**
+     * CommonErrorDto response에 넣고 반환하는 메서드
+     *
+     * @param response
+     * @param status
+     * @param code
+     * @param message
+     * @throws IOException
+     */
+    private void setErrorResponse(HttpServletResponse response, int status, ErrorCode code, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json;charset=UTF-8");
+        CommonErrorDto dto = responseMapper.createError(code, message);
+
+        response.getWriter().write(objectMapper.writeValueAsString(dto));
     }
 
 }

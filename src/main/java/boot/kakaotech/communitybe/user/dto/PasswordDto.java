@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PasswordDto {
 
+    private Integer userId;
+
     private String oldPassword;
 
     private String newPassword;

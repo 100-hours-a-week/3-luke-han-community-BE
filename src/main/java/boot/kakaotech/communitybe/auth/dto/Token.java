@@ -1,22 +1,18 @@
 package boot.kakaotech.communitybe.auth.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
-@Builder
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class SignupDto {
+public class Token {
 
-    private String email;
+    private String accessToken;
 
-    private String password;
-
-    private String nickname;
-
-    private String profileImageName;
+    private String refreshToken;
 
 }

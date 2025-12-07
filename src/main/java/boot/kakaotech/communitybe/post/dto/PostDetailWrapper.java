@@ -1,15 +1,12 @@
 package boot.kakaotech.communitybe.post.dto;
 
-import boot.kakaotech.communitybe.comment.dto.CommentDto;
+import boot.kakaotech.communitybe.comment.dto.CommentThreadDto;
+import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import boot.kakaotech.communitybe.user.dto.SimpUserInfo;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
-import java.util.List;
+import lombok.*;
 
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,9 +16,6 @@ public class PostDetailWrapper {
 
     private PostDetailDto post;
 
-    private List<CommentDto> comments;
+    private CursorPage<CommentThreadDto> comments;
 
-    public void setComments(List<CommentDto> comments) {
-        this.comments = comments;
-    }
 }

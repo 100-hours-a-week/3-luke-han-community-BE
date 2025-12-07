@@ -1,15 +1,21 @@
 package boot.kakaotech.communitybe.auth.service;
 
-import boot.kakaotech.communitybe.auth.dto.SignupDto;
+import boot.kakaotech.communitybe.auth.dto.LoginRequest;
+import boot.kakaotech.communitybe.auth.dto.LoginResponse;
+import boot.kakaotech.communitybe.auth.dto.SignupRequest;
 import boot.kakaotech.communitybe.auth.dto.ValueDto;
-import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletResponse;
 
 public interface AuthService {
 
-    String signup(SignupDto signupDto);
+    String signup(SignupRequest request);
 
-    boolean checkEmail(ValueDto valueDto);
+    LoginResponse login(HttpServletResponse response, LoginRequest loginRequest);
 
-    boolean checkNickname(ValueDto valueDto);
+    boolean checkEmail(ValueDto value);
+
+    boolean checkNickname(ValueDto value);
+
+    void logout(HttpServletResponse response);
 
 }

@@ -14,4 +14,6 @@ public interface CustomPostRepository {
 
     List<String> getImages(int postId);
 
+    int updateViewCountByPostId(Integer postId, Integer viewCount);
+
 }

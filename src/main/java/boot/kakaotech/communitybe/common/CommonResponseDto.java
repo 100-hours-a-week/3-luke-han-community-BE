@@ -1,4 +1,4 @@
-package boot.kakaotech.communitybe.auth.dto;
+package boot.kakaotech.communitybe.common;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,12 +9,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoginUserDto {
+public class CommonResponseDto<T> {
 
-    private Integer userId;
+    private T data;
 
-    private String nickname;
-
-    private String profileImageUrl;
+    private String message;
 
 }

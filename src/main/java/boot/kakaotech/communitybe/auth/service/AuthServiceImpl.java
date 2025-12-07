@@ -1,19 +1,26 @@
 package boot.kakaotech.communitybe.auth.service;
 
-import boot.kakaotech.communitybe.auth.dto.SignupDto;
+import boot.kakaotech.communitybe.auth.dto.LoginRequest;
+import boot.kakaotech.communitybe.auth.dto.LoginResponse;
+import boot.kakaotech.communitybe.auth.dto.SignupRequest;
 import boot.kakaotech.communitybe.auth.dto.ValueDto;
-import boot.kakaotech.communitybe.common.exception.BusinessException;
-import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.auth.jwt.JwtProvider;
+import boot.kakaotech.communitybe.auth.jwt.TokenName;
+import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
+import boot.kakaotech.communitybe.common.properties.JwtProperty;
+import boot.kakaotech.communitybe.common.properties.S3Property;
 import boot.kakaotech.communitybe.common.s3.service.S3Service;
+import boot.kakaotech.communitybe.common.util.KeyValueStore;
+import boot.kakaotech.communitybe.common.validation.Validator;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
+import boot.kakaotech.communitybe.common.util.CookieUtil;
+import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -24,143 +31,139 @@ import java.util.UUID;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
-    private final S3Service s3Service;
+
+    private final JwtProvider provider;
+    private final CookieUtil cookieUtil;
+    private final Validator validator;
+    private final ThreadLocalContext context;
+    private final KeyValueStore kvStore;
 
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${cloud.aws.s3.bucket}")
-    private String bucket;
+    private final JwtProperty jwtProperty;
+    private final S3Property s3Property;
+    private final S3Service s3Service;
 
     /**
-     * 회원가입 하는 검증 메서드
-     * 1. signup validation 진행
-     * 2. 새 User 엔티티 생성
-     * 3. save
+     * 회원가입 서비스 메서드
      *
-     * @param signupDto
-     */
-    @Override
-    @Transactional
-    public String signup(SignupDto signupDto) {
-        log.info("[AuthService] 회원가입 시작");
-
-        validateSignup(signupDto);
-        String key = "user:" + signupDto.getEmail() + ":" + UUID.randomUUID().toString() + ":" + signupDto.getProfileImageName();
-
-        User user = User.builder()
-                .email(signupDto.getEmail())
-                .password(passwordEncoder.encode(signupDto.getPassword()))
-                .nickname(signupDto.getNickname())
-                .profileImageUrl(key)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        userRepository.save(user);
-        String presignedUrl = s3Service.createPUTPresignedUrl(bucket, key);
-
-        log.info("[AuthService] 회원가입 성공");
-        return presignedUrl;
-    }
-
-    /**
-     * 중복 이메일 확인하는 메서드
-     * 1. 이메일 validation 진행
-     * 2. User 존재하는지 확인
-     * 3. boolean 값 리턴
+     * 1. 회원가입 요청으로 들어온 DTO validation
+     * 2. 이미지 S3용 키 발급
+     * 3. 새 유저 생성
+     * 4. 저장
+     * 5. presigned url 발급 및 반환
      *
-     * @param value
+     * @param request
      * @return
      */
     @Override
-    public boolean checkEmail(ValueDto value) {
-        log.info("[AuthService] 이메일 중복확인 시작");
+    @Transactional
+    public String signup(SignupRequest request) {
+        log.info("[AuthService] 회원가입 시작");
 
-        String email = value.getValue();
-        validateEmail(email);
+        validator.validateSignup(request);
+        // 요청값 검증
+
+        boolean hasProfileImage = request.getProfileImageName() != null;
+        String key = hasProfileImage ?  s3Service.makeUserProfileKey(request.getEmail(), request.getProfileImageName()) : null;
+
+        User user = User.builder()
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword())) // 비밀번호 해시 후 저장
+                .nickname(request.getNickname())
+                .profileImageKey(key)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        userRepository.save(user); // 생성 시 save() 호출해야함
+
+        String presignedURl = null;
+        if (hasProfileImage) {
+            presignedURl = s3Service.createPUTPresignedUrl(s3Property.getS3().getBucket(), key);
+        }
+
+        return presignedURl;
+    }
+
+    /**
+     * 로그인 메서드
+     * 1. email로 User 조회
+     * 2. 유저 존재 여부, 비밀번호 일치 여부 확인
+     * 3. response 객체에 토큰 담기
+     * 4. 프로필 사진 GET용 presigned url 발급
+     * 5. LoginResponse 생성 후 반환
+     *
+     * @param response
+     * @param loginRequest
+     * @return
+     */
+    @Override
+    public LoginResponse login(HttpServletResponse response, LoginRequest loginRequest) {
+        log.info("[AuthService] 로그인 시작 - email: {}", loginRequest.getEmail());
+
+        User user = userRepository.findByEmail(loginRequest.getEmail()).orElse(null);
+        // Email로 유저 조회
+        validator.validateUserInfo(loginRequest, user);
+        // 유저 존재 여부, 비밀번호 일치 여부 확인
+
+        String accessToken = provider.generateToken(user, TokenName.ACCESS_TOKEN);
+        String refreshToken = provider.generateRefreshToken(user);
+        // 토큰 생성
+        log.info("[AuthService] 리프레시토큰 저장됨 - refreshToken: {}", kvStore.getRefreshToken(user.getId()));
+
+        cookieUtil.addCookie(
+                response,
+                jwtProperty.getName().getRefreshToken(),
+                refreshToken,
+                (int) jwtProperty.getExpireTime().getRefreshTokenExpireTime() / 1000);
+        // 쿠키에 넣기
+        response.addHeader(jwtProperty.getAuthorization(), "Bearer " + accessToken);
+        // Authorization 헤더에 넣기
+
+        String profileImageKey = user.getProfileImageKey();
+        String presignedUrl = profileImageKey == null ? null : s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageKey);
+
+        return LoginResponse.builder()
+                .userId(user.getId())
+                .nickname(user.getNickname())
+                .profileImageUrl(presignedUrl)
+                .build();
+    }
+
+    /**
+     * 로그아웃 API
+     * - ThreadLocal에 저장된 유저정보 삭제, 쿠키에서 Refresh Token 삭제
+     *
+     * @param response
+     */
+    @Override
+    public void logout(HttpServletResponse response) {
+        log.info("[AuthService] 로그아웃 시작");
+
+        context.clear();
+        cookieUtil.deleteCookie(response, jwtProperty.getName().getRefreshToken());
+    }
+
+    @Override
+    public boolean checkEmail(ValueDto dto) {
+        String email = dto.getValue();
+        log.info("[AuthService] 이메일 중복확인 시작 - email: {}", email);
+
+        validator.validateEmail(email);
         User user = userRepository.findByEmail(email).orElse(null);
 
         return user != null;
     }
 
-    /**
-     * 닉네임 중복 여부 확인하는 메서드
-     * 1. 닉네임 validation 진행
-     * 2. User 존재하는지 확인
-     * 3. boolean 값 리턴
-     *
-     * @param value
-     * @return
-     */
     @Override
-    public boolean checkNickname(ValueDto value) {
-        log.info("[AuthService] 닉네임 중복확인 시작");
+    public boolean checkNickname(ValueDto dto) {
+        String nickname = dto.getValue();
+        log.info("[AuthService] 닉네임 중복확인 시작 - nickname: {}", nickname);
 
-        String nickname = value.getValue();
-        validateNickname(nickname);
+        validator.validateNickname(nickname);
         User user = userRepository.findByNickname(nickname).orElse(null);
 
         return user != null;
-    }
-
-    /**
-     * signup 요청 시 받은 데이터 검증 메서드
-     * 1. 이메일 형식 체크
-     * 2. 비밀번호 길이, 영문 대문자, 소문자, 특수문자, 숫자 체크
-     * 3. 닉네임 길이, 공백 체크
-     *
-     * @param signupDto
-     */
-    private void validateSignup(SignupDto signupDto) {
-        String email = signupDto.getEmail();
-        validateEmail(email);
-
-        String password = signupDto.getPassword();
-        validatePassword(password);
-
-        String nickname = signupDto.getNickname();
-        validateNickname(nickname);
-    }
-
-    /**
-     * 이메일 validation하는 메서드
-     * ooo@ooo.ooo 형식인지 확인
-     *
-     * @param email
-     */
-    private void validateEmail(String email) {
-        String regex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
-
-        if (!email.matches(regex)) {
-            throw new BusinessException(ErrorCode.INVALID_FORMAT);
-        }
-    }
-
-    /**
-     * 비밀번호 validation하는 메서드
-     * 8자 이상, 20자 이하, 대문자, 소문자, 특수문자 1개 이상 포함하는지 확인
-     *
-     * @param password
-     */
-    private void validatePassword(String password) {
-        String regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=`~\\[\\]{};':\",./<>?]).+$";
-
-        if (password.length() < 8 || password.length() > 20 || !password.matches(regex)) {
-            throw new BusinessException(ErrorCode.INVALID_FORMAT);
-        }
-    }
-
-    /**
-     * 닉네임 validation하는 메서드
-     * 비어있는지, 10자 이내인지, 중간에 띄어쓰기 있는지 확인
-     *
-     * @param nickname
-     */
-    private void validateNickname(String nickname) {
-        String regex = ".*\\s.*";
-
-        if (nickname.isEmpty() || nickname.length() > 10 || nickname.matches(regex)) {
-            throw new BusinessException(ErrorCode.INVALID_FORMAT);
-        }
     }
 
 }

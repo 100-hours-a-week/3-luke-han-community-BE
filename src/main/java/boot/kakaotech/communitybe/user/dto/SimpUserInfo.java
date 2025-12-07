@@ -13,10 +13,6 @@ public class SimpUserInfo {
 
     private String name;
 
-    private String profileImageUrl;
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
+    private String profileImageKey;
 
 }

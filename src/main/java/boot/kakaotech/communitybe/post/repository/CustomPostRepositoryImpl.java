@@ -42,16 +42,21 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                         Projections.fields(SimpUserInfo.class,
                                 user.id,
                                 user.nickname.as("name"),
-                                user.profileImageUrl)
+                                user.profileImageKey.as("profileImageKey"))
                         .as("author")
                 ))
                 .from(post)
                 .join(post.author, user)
                 .leftJoin(post.likes, postLike)
                 .leftJoin(post.comments, comment)
+                .on(comment.deletedAt.isNull())
+                .where(
+                        post.deletedAt.isNull(),
+                        user.deletedAt.isNull()
+                )
                 .groupBy(
                         post.id, post.title, post.viewCount, post.createdAt,
-                        user.id, user.nickname, user.profileImageUrl
+                        user.id, user.nickname, user.profileImageKey
                 )
                 .orderBy(post.createdAt.desc())
                 .offset(pageable.getOffset())
@@ -78,7 +83,7 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                                 Projections.fields(SimpUserInfo.class,
                                         user.id,
                                         user.nickname.as("name"),
-                                        user.profileImageUrl
+                                        user.profileImageKey.as("profileImageKey")
                                         ).as("author"),
                                 Projections.fields(PostDetailDto.class,
                                         post.id,
@@ -97,16 +102,22 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                 .leftJoin(post.likes, postLike)
                 .leftJoin(post.images, postImage)
                 .leftJoin(post.comments, comment)
+                .on(comment.deletedAt.isNull())
                 .groupBy(
                         post.id, post.title, post.viewCount, post.createdAt,
-                        user.id, user.nickname, user.profileImageUrl
+                        user.id, user.nickname, user.profileImageKey
                 )
-                .where(post.id.eq(postId))
+                .where(
+                        post.id.eq(postId),
+                        post.deletedAt.isNull(),
+                        user.deletedAt.isNull()
+                )
                 .fetchOne();
 
         return detail;
     }
 
+    @Override
     public List<String> getImages(int postId) {
         List<String> images = jpaQueryFactory
                 .select(postImage.imageKey)
@@ -116,5 +127,17 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
 
         return images;
     }
+
+    @Override
+    public int updateViewCountByPostId(Integer postId, Integer viewCount) {
+        long affectiveRows = jpaQueryFactory
+                .update(post)
+                .set(post.viewCount, post.viewCount.add(viewCount))
+                .where(post.id.eq(postId))
+                .execute();
+
+        return (int) affectiveRows;
+    }
+
 
 }

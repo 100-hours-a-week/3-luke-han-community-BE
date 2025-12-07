@@ -5,23 +5,18 @@ import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import boot.kakaotech.communitybe.comment.dto.CreateCommentDto;
 import boot.kakaotech.communitybe.comment.entity.Comment;
 import boot.kakaotech.communitybe.comment.repository.CommentRepository;
-import boot.kakaotech.communitybe.common.exception.BusinessException;
-import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.common.properties.S3Property;
 import boot.kakaotech.communitybe.common.s3.service.S3Service;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
+import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
+import boot.kakaotech.communitybe.common.validation.Validator;
 import boot.kakaotech.communitybe.post.entity.Post;
-import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.user.entity.User;
-import boot.kakaotech.communitybe.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -31,20 +26,14 @@ import java.util.List;
 public class CommentServiceImpl implements CommentService {
 
     private final CommentRepository commentRepository;
-    private final PostRepository postRepository;
+    private final Validator validator;
 
-    private final UserUtil userUtil;
+    private final ThreadLocalContext context;
     private final S3Service s3Service;
-
-    @Value("${cloud.aws.s3.bucket}")
-    private String bucket;
+    private final S3Property s3Property;
 
     /**
-     * 댓글 조회
-     * 1. Pageable 객체 생성
-     * 2. CommentDto를 리스트로 repository를 통해 조회
-     * 3. 비어있으면 null 반환
-     * 4. size + 1로 조회 후 더 볼게 있는지 flag 설정 후 반환
+     * 무한스크롤링 적용된 댓글 리스트 조회하는 메서드
      *
      * @param postId
      * @param parentId
@@ -54,56 +43,37 @@ public class CommentServiceImpl implements CommentService {
      */
     @Override
     public CursorPage<CommentDto> getComments(Integer postId, Integer parentId, Integer cursor, Integer size) {
-        log.info("[CommentService] 댓글 조회 시작");
+        log.info("[CommentService] 댓글 조회 시작 - postId: {}", postId);
 
-        Pageable pageable = PageRequest.of(cursor, size);
-        List<CommentDto> comments = commentRepository.getComments(postId, parentId, pageable);
+        int lastId = (cursor == null ? 0 : cursor);
 
-        if (comments.isEmpty()) {
-            return null;
-        }
+        List<CommentDto> comments = commentRepository.getComments(postId, parentId, lastId, size);
+        setImagesIntoList(comments);
 
-        comments.forEach(comment -> {
-            String profileImageUrl = comment.getProfileImageUrl();
-            comment.setProfileImageUrl(s3Service.createGETPresignedUrl(bucket, profileImageUrl));
-        });
-        boolean hasNextCursor = comments.size() > size;
-        Integer nextCursor = hasNextCursor ? comments.getLast().getId() : null;
-
-        return CursorPage.<CommentDto>builder()
-                .list(comments)
-                .hasNextCursor(hasNextCursor)
-                .nextCursor(nextCursor)
-                .build();
+        return makeCursorPageIncludedComments(comments, size);
     }
 
     /**
-     * 댓글 생성
-     * 1. 대댓글이라면 부모댓글 조회
-     * 2. post와 현재 댓글 생성 요청 보낸 user 조회
-     * 3. 새 Comment 엔티티 생성
-     * 4. 저장
+     * 댓글 생성 API
      *
      * @param postId
      * @param dto
      * @return
-     * @throws UserPrincipalNotFoundException
      */
     @Override
-    @Transactional
-    public Integer addComment(Integer postId, CreateCommentDto dto) throws UserPrincipalNotFoundException {
-        log.info("[CommentService] 댓글 생성 시작, content: {}", dto.getContent());
+    public Integer addComment(Integer postId, CreateCommentDto dto) {
+        log.info("[CommentService] 댓글 생성 시작, postId: {}", postId);
 
+        Post post = validator.validatePostByIdAndReturn(postId);
         Integer parentId = dto.getParentId();
-        Comment parent = commentRepository.findById(parentId == null ? 0 : parentId).orElse(null);
-        Post post = postRepository.findById(postId).orElse(null);
-        User user = userUtil.getCurrentUser();
+        Comment parent = commentRepository.findById(parentId).orElse(null);
+        User user = context.getCurrentUser();
 
         Comment comment = Comment.builder()
                 .parentComment(parent)
                 .post(post)
                 .user(user)
-                .depth(parent == null ? 0 : parent.getDepth() + 1)
+                .depth(parent == null ? 0 : 1) // 대댓글은 한 번까지만
                 .content(dto.getContent())
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -114,61 +84,90 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
-     * 댓글 수정
-     * 1. 요청보낸 User 조회
-     * 2. Comment 조회
-     * 3. null이거나 댓글 작성자가 아닌 경우 throw error
-     * 4. 수정 후 저장
+     * 댓글 수정하는 메서드
      *
      * @param commentId
-     * @param value
-     * @throws UserPrincipalNotFoundException
+     * @param dto
      */
     @Override
     @Transactional
-    public void updateComment(Integer commentId, ValueDto value) throws UserPrincipalNotFoundException {
-        log.info("[CommentService] 댓글 수정 시작");
+    public void updateComment(Integer commentId, ValueDto dto) {
+        log.info("[CommentService] 댓글 수정 시작 - commentId: {}", commentId);
 
-        User user = userUtil.getCurrentUser();
+        User user = context.getCurrentUser();
+        Comment comment = changeComment(commentId, user, dto);
+    }
 
-        Comment comment = commentRepository.findById(commentId).orElse(null);
-        if (comment == null) {
-            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
-        }
+    @Override
+    @Transactional
+    public void softDeleteComment(Integer commentId) {
+        log.info("[CommentService] 댓글 삭제 시작 - commentId: {}", commentId);
 
-        if (!comment.getUser().equals(user)) {
-            throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
-        }
+        User user = context.getCurrentUser();
+        Comment comment = validator.validateCommentByIdAndReturn(commentId, user);
 
-        comment.setContent(value.getValue());
+        comment.setDeletedAt(LocalDateTime.now());
     }
 
     /**
-     * 댓글 삭제
-     * 1. 요청 보낸 유저 조회
-     * 2. 댓글 조회
-     * 3. 없거나 작성자 아니면 throw error
-     * 4. Comment의 deletedAt 세팅 후 저장
+     * 수정 요청 받은 댓글에 대한 검증과 수정을 담당하는 메서드
      *
      * @param commentId
-     * @throws UserPrincipalNotFoundException
+     * @param user
+     * @param dto
+     * @return
      */
-    @Override
-    @Transactional
-    public void softDeleteComment(Integer commentId) throws UserPrincipalNotFoundException {
-        log.info("[CommentService] 댓글 삭제 시작");
-        User user = userUtil.getCurrentUser();
-
+    private Comment changeComment(Integer commentId, User user, ValueDto dto) {
         Comment comment = commentRepository.findById(commentId).orElse(null);
-        if (comment == null) {
-            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        validator.validateCommentAndAuthor(comment, user);
+
+        comment.setContent(dto.getValue());
+
+        return comment;
+    }
+
+    /**
+     * CursorPage 객체에 데이터 담아 반환하는 메서드
+     *
+     * @param comments
+     * @param size
+     * @return
+     */
+    private CursorPage<CommentDto> makeCursorPageIncludedComments(List<CommentDto> comments, int size) {
+        boolean hasNextCursor = comments.size() > size;
+        Integer nextCursor = null;
+
+        List<CommentDto> pageItems = comments;
+
+        if (hasNextCursor) {
+            pageItems = comments.subList(0, size);
+            nextCursor = pageItems.get(pageItems.size() - 1).getId();
         }
 
-        if (!comment.getUser().equals(user)) {
-            throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
-        }
+        return CursorPage.<CommentDto>builder()
+                .list(pageItems)
+                .hasNextCursor(hasNextCursor)
+                .nextCursor(nextCursor)
+                .build();
+    }
 
-        comment.setDeletedAt(LocalDateTime.now());
+    /**
+     * 댓글 작성자 프로필 이미지 presigned url 발급하는 메서드
+     *
+     * @param comments
+     */
+    private void setImagesIntoList(List<CommentDto> comments) {
+        comments.forEach(comment -> {
+            String key = comment.getProfileImageUrl();
+
+            if (key == null || key.isBlank()) {
+                return;
+            }
+
+            comment.setProfileImageUrl(
+                    s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), key)
+            );
+        });
     }
 
 }

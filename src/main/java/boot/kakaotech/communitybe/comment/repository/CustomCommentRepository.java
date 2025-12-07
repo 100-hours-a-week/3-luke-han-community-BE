@@ -7,6 +7,6 @@ import java.util.List;
 
 public interface CustomCommentRepository {
 
-    List<CommentDto> getComments(Integer postId, Integer parentId, Pageable pageable);
+    List<CommentDto> getComments(Integer postId, Integer parentId, Integer lastCommentId, int size);
 
 }

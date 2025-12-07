@@ -1,95 +1,58 @@
 package boot.kakaotech.communitybe.common.handler;
 
+import boot.kakaotech.communitybe.common.CommonErrorDto;
+import boot.kakaotech.communitybe.common.CommonResponseMapper;
 import boot.kakaotech.communitybe.common.exception.BusinessException;
+import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.nio.file.attribute.UserPrincipalNotFoundException;
-import java.time.LocalDateTime;
-
+@RestControllerAdvice
 @RequiredArgsConstructor
 @Slf4j
 public class GlobalExceptionHandler {
 
+    private final CommonResponseMapper mapper;
+
+    private final ThreadLocalContext context;
+
+    /**
+     * Business Exception으로 감싼 에러 처리하는 핸들러
+     * 공통적으로 CommonErrorDto 반환
+     *
+     * @param ex
+     * @return
+     */
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<?> handleBusinessException(BusinessException e) {
-        log.error("[BusinessException] {}", e.getMessage());
-        String errorMsg = e.getMessage();
+    public ResponseEntity<CommonErrorDto> handleBusinessException(BusinessException ex) {
+        log.error(ex.getMessage());
 
-        return ResponseEntity
-                .status(e.getErrorCode().getStatus())
-                .body(new ErrorResponse(
-                        e.getErrorCode().getStatus().value(),
-                        errorMsg,
-                        LocalDateTime.now()
-                ));
+        context.clear(); // 에러 발생 시 메모리 누수 방지용
+        CommonErrorDto response = mapper.createError(ex.getErrorCode(), ex.getMessage());
+        return ResponseEntity.status(ex.getErrorCode().getStatus()).body(response);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
-        log.error("[ValidationException] {}", e.getMessage());
-        String errorMsg = e.getBindingResult().getFieldError().getDefaultMessage();
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<CommonErrorDto> handleRuntimeException(RuntimeException ex) {
+        log.error(ex.getMessage());
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(
-                        400,
-                        errorMsg,
-                        LocalDateTime.now()
-                ));
-    }
-
-    @ExceptionHandler(UserPrincipalNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleUserPrincipalNotFoundException(UserPrincipalNotFoundException e) {
-        log.error("[UserPrincipalNotFoundException] {}", e.getMessage());
-        String errorMsg = e.getMessage();
-
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(new ErrorResponse(
-                        401,
-                        errorMsg,
-                        LocalDateTime.now()
-                ));
-    }
-
-    @ExceptionHandler(UsernameNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleUsernameNotFoundException(UsernameNotFoundException e) {
-        log.error("[UsernameNotFoundException] {}", e.getMessage());
-        String errorMsg = e.getMessage();
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(
-                        400,
-                        errorMsg,
-                        LocalDateTime.now()
-                ));
+        context.clear();
+        CommonErrorDto response = mapper.createError(ErrorCode.ILLEGAL_ARGUMENT, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleException(Exception e) {
-        log.error("[Exception] {}", e.getMessage());
-        String errorMsg = e.getMessage();
+    public ResponseEntity<CommonErrorDto> handleException(Exception ex) {
+        log.error(ex.getMessage());
 
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(
-                        500,
-                        errorMsg,
-                        LocalDateTime.now()
-                ));
+        context.clear();
+        CommonErrorDto response = mapper.createError(ErrorCode.ILLEGAL_ARGUMENT, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 
 }
-
-record ErrorResponse(
-    int status,
-    String message,
-    LocalDateTime timestamp
-) {}

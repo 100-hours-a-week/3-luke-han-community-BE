@@ -4,14 +4,14 @@ import boot.kakaotech.communitybe.auth.dto.ValueDto;
 import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import boot.kakaotech.communitybe.comment.dto.CreateCommentDto;
 import boot.kakaotech.communitybe.comment.service.CommentService;
+import boot.kakaotech.communitybe.common.CommonResponseDto;
+import boot.kakaotech.communitybe.common.CommonResponseMapper;
 import boot.kakaotech.communitybe.common.scroll.dto.CursorPage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.nio.file.attribute.UserPrincipalNotFoundException;
 
 @RestController
 @RequestMapping("/api")
@@ -21,8 +21,20 @@ public class CommentController {
 
     private final CommentService commentService;
 
+    private final CommonResponseMapper mapper;
+
+    /**
+     * 무한스크롤링 댓글 조회하는 API
+     * - 같은 깊이의 댓글만 조회
+     *
+     * @param postId
+     * @param parentId
+     * @param cursor
+     * @param size
+     * @return
+     */
     @GetMapping("/posts/{postId}/comments")
-    public ResponseEntity<CursorPage<CommentDto>> getComments(
+    public ResponseEntity<CommonResponseDto<CursorPage<CommentDto>>> getComments(
             @PathVariable("postId") Integer postId,
             @RequestParam("pid") Integer parentId,
             @RequestParam("cursor") Integer cursor,
@@ -31,46 +43,71 @@ public class CommentController {
         log.info("[CommentController] 댓글 조회 시작 - postId: {}, parentId: {}", postId, parentId);
 
         CursorPage<CommentDto> comments = commentService.getComments(postId, parentId, cursor, size);
-        log.info("[CommentController] 댓글 조회 성공");
+        CommonResponseDto<CursorPage<CommentDto>> response = mapper.createResponse(comments, "댓글 조회 성공");
 
-        return comments != null ? ResponseEntity.ok(comments) : ResponseEntity.noContent().build();
+        return ResponseEntity.ok(response);
     }
 
+    /**
+     * 댓글 생성하는 API
+     *
+     * @param postId
+     * @param dto
+     * @return
+     */
     @PostMapping("/posts/{postId}/comments")
-    public ResponseEntity<Integer> addComment(@PathVariable("postId") Integer postId, @RequestBody CreateCommentDto dto) throws UserPrincipalNotFoundException {
+    public ResponseEntity<CommonResponseDto<Integer>> addComment(
+            @PathVariable("postId") Integer postId,
+            @RequestBody CreateCommentDto dto
+            ) {
         log.info("[CommentController] 댓글 생성 시작 - postId: {}", postId);
 
         Integer commentId = commentService.addComment(postId, dto);
-        log.info("[CommentController] 댓글 생성 성공");
+        CommonResponseDto<Integer> response = mapper.createResponse(commentId, "댓글 생성 성공");
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(commentId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    /**
+     * 댓글 수정하는 API
+     *
+     * @param postId
+     * @param commentId
+     * @param dto
+     * @return
+     */
     @PatchMapping("/posts/{postId}/comments/{commentId}")
-    public ResponseEntity<Void> updateComment(
+    public ResponseEntity<CommonResponseDto<Void>> updateComment(
             @PathVariable("postId") Integer postId,
             @PathVariable("commentId") Integer commentId,
-            @RequestBody ValueDto value
-    ) throws UserPrincipalNotFoundException {
+            @RequestBody ValueDto dto
+            ) {
         log.info("[CommentController] 댓글 수정 시작 - postId: {}, commentId: {}", postId, commentId);
 
-        commentService.updateComment(commentId, value);
-        log.info("[CommentController] 댓글 수정 성공");
+        commentService.updateComment(commentId, dto);
+        CommonResponseDto<Void> response = mapper.createResponse("댓글 수정 성공");
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(response);
     }
 
+    /**
+     * 댓글 삭제하는 API
+     *
+     * @param postId
+     * @param commentId
+     * @return
+     */
     @PatchMapping("/posts/{postId}/comments/{commentId}/status")
-    public ResponseEntity<Void> updateCommentStatus(
+    public ResponseEntity<CommonResponseDto<Void>> updateCommentStatus(
             @PathVariable("postId") Integer postId,
             @PathVariable("commentId") Integer commentId
-    ) throws UserPrincipalNotFoundException {
-        log.info("[CommentController] 댓글 삭제 시작 -  postId: {}, commentId: {}", postId, commentId);
+    ) {
+        log.info("[CommentController] 댓글 삭제 시작 - postId: {}, commentId: {}", postId, commentId);
 
         commentService.softDeleteComment(commentId);
-        log.info("[CommentController] 댓글 삭제 성공");
+        CommonResponseDto<Void> response = mapper.createResponse("댓글 삭제 성공");
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(response);
     }
 
 }

@@ -1,23 +1,18 @@
 package boot.kakaotech.communitybe.user.service;
 
-import boot.kakaotech.communitybe.common.exception.BusinessException;
-import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
+import boot.kakaotech.communitybe.common.properties.S3Property;
 import boot.kakaotech.communitybe.common.s3.service.S3Service;
+import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
+import boot.kakaotech.communitybe.common.validation.Validator;
 import boot.kakaotech.communitybe.user.dto.PasswordDto;
 import boot.kakaotech.communitybe.user.dto.SimpUserInfo;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
-import boot.kakaotech.communitybe.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.nio.file.attribute.UserPrincipalNotFoundException;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -26,44 +21,63 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 
-    private final UserUtil userUtil;
+    private final ThreadLocalContext context;
     private final PasswordEncoder passwordEncoder;
+    private final Validator validator;
     private final S3Service s3Service;
+    private final S3Property s3Property;
 
-    @Value("${cloud.aws.s3.bucket}")
-    private String bucket;
-
+    /**
+     * 유저 프로필 정보 업데이트하는 메서드
+     *
+     * @param userInfo
+     * @return
+     */
     @Override
     @Transactional
-    public String updateUserInfo(SimpUserInfo userInfo) throws UserPrincipalNotFoundException, UsernameNotFoundException {
-        log.info("[UserService] 유저정보 업데이트 시작");
+    public String updateUserInfo(SimpUserInfo userInfo) {
+        log.info("[UserService] 유저 프로필 수정 시작");
 
-        User user = userUtil.getCurrentUser();
+        User requestUser = context.getCurrentUser();
+        User user = validator.validateUserInfo(requestUser, userInfo.getId());
 
         user.setNickname(userInfo.getName());
         String presignedUrl = null;
-
-        if (userInfo.getProfileImageUrl() != null) {
-            String imageKey = "user:" + user.getEmail() + ":" + UUID.randomUUID() + userInfo.getProfileImageUrl();
-            presignedUrl = s3Service.createPUTPresignedUrl(bucket, imageKey);
+        String profileImageUrl = userInfo.getProfileImageKey();
+        if (profileImageUrl != null) {
+            String key = s3Service.makeUserProfileKey(user.getEmail(), profileImageUrl);
+            presignedUrl = s3Service.createPUTPresignedUrl(s3Property.getS3().getBucket(), key);
+            user.setProfileImageKey(key);
         }
 
-        log.info("[UserService] 유저정보 업데이트 성공");
+        userRepository.save(user);
+
         return presignedUrl;
     }
 
+    /**
+     * 유저의 비밀번호를 변경하는 메서드
+     *
+     * @param dto
+     */
     @Override
     @Transactional
-    public void updatePassword(PasswordDto passwordDto) throws UserPrincipalNotFoundException, UsernameNotFoundException {
+    public void updatePassword(PasswordDto dto) {
         log.info("[UserService] 비밀번호 변경 시작");
 
-        User user = userUtil.getCurrentUser();
+        User requestUser = context.getCurrentUser();
+        User user = validator.validateNewPassword(requestUser, dto);
 
-        if (!passwordEncoder.matches(passwordDto.getOldPassword(), user.getPassword())) {
-            throw new BusinessException(ErrorCode.PASSWORD_NOT_MATCHED);
-        }
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+    }
 
-        user.setPassword(passwordEncoder.encode(passwordDto.getNewPassword()));
+    @Override
+    public String getMyPresignedUrl() {
+        log.info("[UserService] 프로필 사진 조회 시작");
+
+        User requestUser = context.getCurrentUser();
+        String imageKey = requestUser.getProfileImageKey();
+        return imageKey == null ? null : s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), imageKey);
     }
 
 }
