@@ -75,7 +75,7 @@ public class PostController {
      * @return
      */
     @PostMapping
-    public ResponseEntity<CommonResponseDto<SavedPostDto>> post(
+    public ResponseEntity<CommonResponseDto<SavedPostDto>> createPost(
             @RequestBody CreatePostDto createPostDto
     ) {
         log.info("[PostController] 게시글 생성 시작");
@@ -129,6 +129,45 @@ public class PostController {
                 "게시글 삭제 성공"
         );
 
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 게시글 좋아요 API
+     *
+     * @param postId
+     * @return
+     */
+    @PostMapping("/{postId}/likes")
+    public ResponseEntity<CommonResponseDto<Void>> likePost(
+            @PathVariable Integer postId
+    ) {
+        log.info("[PostController] 좋아요 시작 - postId: {}", postId);
+
+        postService.likePost(postId);
+        CommonResponseDto<Void> response = responseMapper.createResponse(
+                "게시글 좋아요 성공"
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 게시글 좋아요 취소
+     *
+     * @param postId
+     * @return
+     */
+    @DeleteMapping("/{postId}/likes")
+    public ResponseEntity<CommonResponseDto<Void>> unlikePost(
+            @PathVariable Integer postId
+    ) {
+        log.info("[PostController] 게시글 좋아요 취소 요청 - postId: {}", postId);
+
+        postService.unlikePost(postId);
+
+        CommonResponseDto<Void> response = responseMapper.createResponse(
+                "게시글 좋아요 취소 성공"
+        );
         return ResponseEntity.ok(response);
     }
 

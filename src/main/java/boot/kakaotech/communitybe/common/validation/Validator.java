@@ -34,7 +34,7 @@ public class Validator {
      * @param user
      */
     public void validateUserInfo(LoginRequest request, User user) {
-        if (user == null || passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_USERINFO);
         }
     }
@@ -111,8 +111,12 @@ public class Validator {
         if (post == null) {
             throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
         }
+        if (user == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
 
-        if (!post.getAuthor().equals(user)) {
+        Integer authorId = post.getAuthor() != null ? post.getAuthor().getId() : null;
+        if (!user.getId().equals(authorId)) {
             throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
         }
     }
@@ -143,8 +147,12 @@ public class Validator {
         if (comment == null) {
             throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
         }
+        if (user == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
 
-        if (!comment.getUser().equals(user)) {
+        Integer writerId = comment.getUser() != null ? comment.getUser().getId() : null;
+        if (!user.getId().equals(writerId)) {
             throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
         }
     }
@@ -161,7 +169,16 @@ public class Validator {
             throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
         }
 
-        if (!comment.getUser().equals(user)) {
+        if (user == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        if (comment.getUser() == null || comment.getUser().getId() == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        Integer writerId = comment.getUser().getId();
+        if (!user.getId().equals(writerId)) {
             throw new BusinessException(ErrorCode.REQUEST_FROM_OTHERS);
         }
 
@@ -206,6 +223,12 @@ public class Validator {
         }
 
         return user;
+    }
+
+    public void validatePost(Post post) {
+        if  (post == null) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
     }
 
 }

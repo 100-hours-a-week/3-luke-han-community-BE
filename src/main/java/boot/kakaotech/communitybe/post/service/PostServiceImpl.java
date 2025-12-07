@@ -3,6 +3,8 @@ package boot.kakaotech.communitybe.post.service;
 import boot.kakaotech.communitybe.comment.dto.CommentDto;
 import boot.kakaotech.communitybe.comment.dto.CommentThreadDto;
 import boot.kakaotech.communitybe.comment.repository.CommentRepository;
+import boot.kakaotech.communitybe.common.exception.BusinessException;
+import boot.kakaotech.communitybe.common.exception.ErrorCode;
 import boot.kakaotech.communitybe.common.properties.PrefixProperty;
 import boot.kakaotech.communitybe.common.properties.S3Property;
 import boot.kakaotech.communitybe.common.s3.service.S3Service;
@@ -15,6 +17,8 @@ import boot.kakaotech.communitybe.post.dto.PostListWrapper;
 import boot.kakaotech.communitybe.post.dto.SavedPostDto;
 import boot.kakaotech.communitybe.post.entity.Post;
 import boot.kakaotech.communitybe.post.entity.PostImage;
+import boot.kakaotech.communitybe.post.entity.PostLike;
+import boot.kakaotech.communitybe.post.repository.PostLikeRepository;
 import boot.kakaotech.communitybe.post.repository.PostRepository;
 import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
 import boot.kakaotech.communitybe.user.entity.User;
@@ -28,7 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +42,7 @@ public class PostServiceImpl implements PostService {
     private static final int CHILD_PREVIEW_SIZE   = 3;
 
     private final PostRepository postRepository;
+    private final PostLikeRepository postLikeRepository;
     private final CommentRepository commentRepository;
 
     private final ThreadLocalContext context;
@@ -63,12 +67,7 @@ public class PostServiceImpl implements PostService {
         Pageable pageable = PageRequest.of(cursor, size);
         List<PostListWrapper> posts = postRepository.getPostsUsingFetch(pageable);
 
-        if (posts.isEmpty()) {
-            return null;
-        }
-
-        CursorPage<PostListWrapper> response = createPostList(posts, size);
-        return response;
+        return createPostList(posts, size, cursor);
     }
 
     /**
@@ -106,7 +105,9 @@ public class PostServiceImpl implements PostService {
         List<PostImage> imagesList = new ArrayList<>();
         List<String> presignedUrls = new ArrayList<>();
 
-        changeAndSetImages(post, presignedUrls, imagesList, dto.getImages());
+        if (dto.getImages() != null && !dto.getImages().isEmpty()) {
+            changeAndSetImages(post, presignedUrls, imagesList, dto.getImages());
+        }
 
         return SavedPostDto.builder()
                 .postId(post.getId())
@@ -159,6 +160,59 @@ public class PostServiceImpl implements PostService {
         post.setDeletedAt(LocalDateTime.now());
     }
 
+    /**
+     * 좋아요 생성하는 메서드
+     *
+     * @param postId
+     */
+    @Override
+    @Transactional
+    public void likePost(int postId) {
+        log.info("[PostService] 게시글 좋아요 시작 - postId = {}", postId);
+
+        User user = context.getCurrentUser();
+        Post post = postRepository.findById(postId).orElse(null);
+        validator.validatePost(post);          // 없으면 예외
+
+        boolean alreadyLiked = postLikeRepository
+                .existsByPostIdAndUserId(postId, user.getId());
+        if (alreadyLiked) {
+            throw new BusinessException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        PostLike like = PostLike.builder()
+                .post(post)
+                .user(user)
+                .build();
+
+        postLikeRepository.save(like);
+    }
+
+    /**
+     * 좋아요 삭제하는 메서드
+     *
+     * @param postId
+     */
+    @Override
+    @Transactional
+    public void unlikePost(int postId) {
+        log.info("[PostService] 게시글 좋아요 취소 시작 - postId = {}", postId);
+
+        User user = context.getCurrentUser();
+        Post post = postRepository.findById(postId).orElse(null);
+        validator.validatePost(post);
+
+        PostLike like = postLikeRepository
+                .findByPostIdAndUserId(postId, user.getId())
+                .orElse(null);
+
+        if (like == null) {
+            return; // 안 눌려있으면 그냥 무시
+        }
+
+        postLikeRepository.delete(like);
+    }
+
     private List<String> makePresignedUrls(Post post, CreatePostDto dto) {
         List<String> presignedUrls = new ArrayList<>();
         List<String> images = dto.getImages();
@@ -194,6 +248,13 @@ public class PostServiceImpl implements PostService {
      */
     private Post changePost(User user, CreatePostDto dto) {
         Post post = postRepository.findById(dto.getId()).orElse(null);
+
+        log.info("[PostService] changePost dtoId={}, userId={}, postAuthorId={}",
+                dto.getId(),
+                user != null ? user.getId() : null,
+                post != null && post.getAuthor() != null ? post.getAuthor().getId() : null
+        );
+
         validator.validatePostAndAuthor(post, user);
 
         String title = dto.getTitle();
@@ -240,6 +301,10 @@ public class PostServiceImpl implements PostService {
      * @param images
      */
     private void changeAndSetImages(Post post, List<String> presignedUrls, List<PostImage> imagesList, List<String> images) {
+        if (images == null || images.isEmpty()) {
+            return;
+        }
+
         images.stream().forEach(image -> {
             String imageKey = s3Service.makePostKey(post.getId(), image);
             imagesList.add(PostImage.builder().post(post).imageKey(imageKey).build());
@@ -288,8 +353,11 @@ public class PostServiceImpl implements PostService {
         List<String> images = postRepository.getImages(post.getPost().getId());
         post.getPost().setImages(new ArrayList<>());
         images.stream().forEach(image -> {
-            String key = s3Service.makePostKey(post.getPost().getId(), image);
-            String presignedUrl = s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), key);
+            if (image == null || image.isBlank()) {
+                return;
+            }
+
+            String presignedUrl = s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), image);
             post.getPost().getImages().add(presignedUrl);
         });
     }
@@ -300,8 +368,12 @@ public class PostServiceImpl implements PostService {
      * @param post
      */
     private void setAuthorIntoPostDetail(PostDetailWrapper post) {
-        String authorProfile = post.getAuthor().getProfileImageUrl();
-        post.getAuthor().setProfileImageUrl(
+        String authorProfile = post.getAuthor().getProfileImageKey();
+        if (authorProfile == null || authorProfile.isBlank()) {
+            return;
+        }
+
+        post.getAuthor().setProfileImageKey(
                 s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), authorProfile)
         );
     }
@@ -333,16 +405,22 @@ public class PostServiceImpl implements PostService {
         String key = property.getViewCount() + postId;
 
         String value = kvStore.get(key); // kvStore에서 조회
-        Integer viewCount;
-        Integer originalViewCount = postRepository.findViewCountByPostId(post.getPost().getId()).orElse(0);
-        if (value == null) { // kvStore에 없으면
-            viewCount = 0;
+        int delta;
+        if (value == null) {
+            delta = 0;
         } else {
-            viewCount = Integer.parseInt(value);
+            delta = Integer.parseInt(value);
         }
 
-        kvStore.put(key, String.valueOf(++viewCount));
-        post.getPost().setViewCount(originalViewCount + viewCount);
+        delta++;
+        kvStore.put(key, String.valueOf(delta));
+
+        Integer originalViewCount = post.getPost().getViewCount();
+        if (originalViewCount == null) {
+            originalViewCount = 0;
+        }
+
+        post.getPost().setViewCount(originalViewCount + delta);
         // kvStore에 추가 및 post에 적재
     }
 
@@ -354,19 +432,21 @@ public class PostServiceImpl implements PostService {
      * @param size
      * @return
      */
-    private CursorPage<PostListWrapper> createPostList(List<PostListWrapper> posts, int size) {
+    private CursorPage<PostListWrapper> createPostList(List<PostListWrapper> posts, int size, int cursor) {
         boolean hasNextCursor = posts.size() > size;
-        Integer nextCursor = hasNextCursor ? posts.getLast().getPost().getId() : null;
-
         if (hasNextCursor) {
             posts.removeLast();
         }
 
         posts.forEach(post -> {
-            String profileImageKey = post.getAuthor().getProfileImageUrl();
+            String profileImageKey = post.getAuthor().getProfileImageKey();
 
-            post.getAuthor().setProfileImageUrl(s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageKey));
+            if (profileImageKey != null && !profileImageKey.isBlank()) {
+                post.getAuthor().setProfileImageKey(s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageKey));
+            }
         });
+
+        Integer nextCursor = hasNextCursor ? cursor + 1: null;
 
         return CursorPage.<PostListWrapper>builder()
                 .list(posts)
@@ -397,16 +477,14 @@ public class PostServiceImpl implements PostService {
      * 부모(최상위) 댓글들을 조회하고, cursor/hasNext까지 계산하는 메서드
      */
     private ParentCommentPage loadParentComments(int postId) {
-        Pageable parentPageable = PageRequest.of(0, PARENT_COMMENT_SIZE + 1);
-
-        List<CommentDto> parents = commentRepository.getComments(postId, 0, parentPageable);
+        List<CommentDto> parents = commentRepository.getComments(postId, 0, null, PARENT_COMMENT_SIZE);
 
         boolean hasNextParent = parents.size() > PARENT_COMMENT_SIZE;
         Integer nextParentCursor = null;
 
         if (hasNextParent) {
             CommentDto last = parents.remove(parents.size() - 1);
-            nextParentCursor = last.getId();      // 다음 페이지용 cursor (id 기반)
+            nextParentCursor = parents.getLast().getId();     // 다음 페이지용 cursor (id 기반)
         }
 
         // 부모 댓글 작성자 프로필 presigned 세팅
@@ -449,16 +527,14 @@ public class PostServiceImpl implements PostService {
      * - 최대 CHILD_PREVIEW_SIZE + 1개 조회해서 hasMoreChildren 결정
      */
     private ChildCommentPage loadChildPreview(int postId, Integer parentId) {
-        Pageable childPageable = PageRequest.of(0, CHILD_PREVIEW_SIZE + 1);
-
-        List<CommentDto> children = commentRepository.getComments(postId, parentId, childPageable);
+        List<CommentDto> children = commentRepository.getComments(postId, parentId, null, CHILD_PREVIEW_SIZE);
 
         boolean hasMoreChildren = children.size() > CHILD_PREVIEW_SIZE;
         Integer childNextCursor = null;
 
         if (hasMoreChildren) {
             CommentDto lastChild = children.remove(children.size() - 1);
-            childNextCursor = lastChild.getId();
+            childNextCursor = children.getLast().getId();
         }
 
         // 자식 댓글 작성자 프로필 presigned 세팅
@@ -483,9 +559,14 @@ public class PostServiceImpl implements PostService {
 
     private void setImagesIntoList(List<CommentDto> comments) {
         comments.forEach(comment -> {
-            String profileImageUrl = comment.getProfileImageUrl();
+            String key = comment.getProfileImageUrl();
+
+            if (key == null || key.isBlank()) {
+                return;
+            }
+
             comment.setProfileImageUrl(
-                    s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageUrl)
+                    s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), key)
             );
         });
     }

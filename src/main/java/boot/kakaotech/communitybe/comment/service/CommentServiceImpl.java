@@ -14,8 +14,6 @@ import boot.kakaotech.communitybe.post.entity.Post;
 import boot.kakaotech.communitybe.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,7 +45,9 @@ public class CommentServiceImpl implements CommentService {
     public CursorPage<CommentDto> getComments(Integer postId, Integer parentId, Integer cursor, Integer size) {
         log.info("[CommentService] 댓글 조회 시작 - postId: {}", postId);
 
-        List<CommentDto> comments = getCommentsFromRepository(postId, parentId, cursor, size);
+        int lastId = (cursor == null ? 0 : cursor);
+
+        List<CommentDto> comments = commentRepository.getComments(postId, parentId, lastId, size);
         setImagesIntoList(comments);
 
         return makeCursorPageIncludedComments(comments, size);
@@ -135,10 +135,17 @@ public class CommentServiceImpl implements CommentService {
      */
     private CursorPage<CommentDto> makeCursorPageIncludedComments(List<CommentDto> comments, int size) {
         boolean hasNextCursor = comments.size() > size;
-        Integer nextCursor = hasNextCursor ? comments.getLast().getId() : null;
+        Integer nextCursor = null;
+
+        List<CommentDto> pageItems = comments;
+
+        if (hasNextCursor) {
+            pageItems = comments.subList(0, size);
+            nextCursor = pageItems.get(pageItems.size() - 1).getId();
+        }
 
         return CursorPage.<CommentDto>builder()
-                .list(comments)
+                .list(pageItems)
                 .hasNextCursor(hasNextCursor)
                 .nextCursor(nextCursor)
                 .build();
@@ -151,23 +158,16 @@ public class CommentServiceImpl implements CommentService {
      */
     private void setImagesIntoList(List<CommentDto> comments) {
         comments.forEach(comment -> {
-            String profileImageUrl = comment.getProfileImageUrl();
-            comment.setProfileImageUrl(s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageUrl));
-        });
-    }
+            String key = comment.getProfileImageUrl();
 
-    /**
-     * Pageable 객체 생성해서 Repository에서 이미지 조회하는 메서드
-     *
-     * @param postId
-     * @param parentId
-     * @param cursor
-     * @param size
-     * @return
-     */
-    private List<CommentDto> getCommentsFromRepository(Integer postId, Integer parentId, Integer cursor, Integer size) {
-        Pageable pageable = PageRequest.of(cursor, size);
-        return commentRepository.getComments(postId, parentId, pageable);
+            if (key == null || key.isBlank()) {
+                return;
+            }
+
+            comment.setProfileImageUrl(
+                    s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), key)
+            );
+        });
     }
 
 }

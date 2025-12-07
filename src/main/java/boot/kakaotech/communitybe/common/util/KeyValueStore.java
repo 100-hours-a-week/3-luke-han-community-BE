@@ -12,6 +12,8 @@ public class KeyValueStore {
 
     private final Map<String, String> map = new ConcurrentHashMap<>();
 
+    private final Map<String, String> tokenStore = new ConcurrentHashMap<>();
+
     public String get(String key) {
         return map.get(key);
     }
@@ -41,6 +43,20 @@ public class KeyValueStore {
      */
     public Map<String, String> snapShot() {
         return new ConcurrentHashMap<>(map);
+    }
+
+    private static final String RT_PREFIX = "RT:";
+
+    public void saveRefreshToken(int userId, String refreshToken) {
+        tokenStore.put(RT_PREFIX + userId, refreshToken);
+    }
+
+    public String getRefreshToken(int userId) {
+        return tokenStore.get(RT_PREFIX + userId);
+    }
+
+    public void deleteRefreshToken(int userId) {
+        tokenStore.remove(RT_PREFIX + userId);
     }
 
 }

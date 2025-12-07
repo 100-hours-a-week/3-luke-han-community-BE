@@ -42,13 +42,18 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                         Projections.fields(SimpUserInfo.class,
                                 user.id,
                                 user.nickname.as("name"),
-                                user.profileImageKey)
+                                user.profileImageKey.as("profileImageKey"))
                         .as("author")
                 ))
                 .from(post)
                 .join(post.author, user)
                 .leftJoin(post.likes, postLike)
                 .leftJoin(post.comments, comment)
+                .on(comment.deletedAt.isNull())
+                .where(
+                        post.deletedAt.isNull(),
+                        user.deletedAt.isNull()
+                )
                 .groupBy(
                         post.id, post.title, post.viewCount, post.createdAt,
                         user.id, user.nickname, user.profileImageKey
@@ -78,7 +83,7 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                                 Projections.fields(SimpUserInfo.class,
                                         user.id,
                                         user.nickname.as("name"),
-                                        user.profileImageKey
+                                        user.profileImageKey.as("profileImageKey")
                                         ).as("author"),
                                 Projections.fields(PostDetailDto.class,
                                         post.id,
@@ -97,11 +102,16 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                 .leftJoin(post.likes, postLike)
                 .leftJoin(post.images, postImage)
                 .leftJoin(post.comments, comment)
+                .on(comment.deletedAt.isNull())
                 .groupBy(
                         post.id, post.title, post.viewCount, post.createdAt,
                         user.id, user.nickname, user.profileImageKey
                 )
-                .where(post.id.eq(postId))
+                .where(
+                        post.id.eq(postId),
+                        post.deletedAt.isNull(),
+                        user.deletedAt.isNull()
+                )
                 .fetchOne();
 
         return detail;

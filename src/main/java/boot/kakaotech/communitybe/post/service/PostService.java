@@ -18,4 +18,8 @@ public interface PostService {
 
     void softDeletePost(int postId);
 
+    void likePost(int postId);
+
+    void unlikePost(int postId);
+
 }

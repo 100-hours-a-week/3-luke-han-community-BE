@@ -7,6 +7,6 @@ import java.util.Optional;
 
 public interface PostRepository extends JpaRepository<Post, Integer>, CustomPostRepository {
 
-    Optional<Integer> findViewCountByPostId(Integer postId);
+    Optional<Integer> findViewCountById(Integer postId);
 
 }

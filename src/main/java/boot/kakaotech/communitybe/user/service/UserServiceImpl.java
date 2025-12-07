@@ -43,10 +43,11 @@ public class UserServiceImpl implements UserService {
 
         user.setNickname(userInfo.getName());
         String presignedUrl = null;
-        String profileImageUrl = userInfo.getProfileImageUrl();
+        String profileImageUrl = userInfo.getProfileImageKey();
         if (profileImageUrl != null) {
             String key = s3Service.makeUserProfileKey(user.getEmail(), profileImageUrl);
             presignedUrl = s3Service.createPUTPresignedUrl(s3Property.getS3().getBucket(), key);
+            user.setProfileImageKey(key);
         }
 
         userRepository.save(user);

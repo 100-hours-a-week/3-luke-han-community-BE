@@ -10,4 +10,6 @@ public interface S3Service {
 
     String makePostKey(Integer postId, String fileName);
 
+    String getUserProfileUrl();
+
 }

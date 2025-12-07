@@ -21,7 +21,7 @@ public class CustomCommentRepositoryImpl implements CustomCommentRepository {
     private final JPAQueryFactory jpaQueryFactory;
 
     @Override
-    public List<CommentDto> getComments(Integer postId, Integer parentId, Pageable pageable) {
+    public List<CommentDto> getComments(Integer postId, Integer parentId, Integer lastCommentId, int size) {
         BooleanExpression parentFilter;
         if (parentId == null || parentId == 0) {
             // 최상위 댓글: parentComment IS NULL
@@ -31,7 +31,13 @@ public class CustomCommentRepositoryImpl implements CustomCommentRepository {
             parentFilter = comment.parentComment.id.eq(parentId);
         }
 
-        List<CommentDto> comments = jpaQueryFactory
+        // 커서(id) 필터: 첫 페이지(lastCommentId == null)이면 필터 없음
+        BooleanExpression cursorFilter =
+                (lastCommentId == null || lastCommentId == 0)
+                        ? null
+                        : comment.id.gt(lastCommentId);  // 이전 페이지 마지막 id보다 더 오래된(작은) 것들
+
+        return jpaQueryFactory
                 .select(Projections.constructor(CommentDto.class,
                         comment.id,
                         user.id.as("userId"),
@@ -47,14 +53,14 @@ public class CustomCommentRepositoryImpl implements CustomCommentRepository {
                 .leftJoin(comment.parentComment)
                 .where(
                         comment.post.id.eq(postId),
-                        parentFilter
+                        parentFilter,
+                        cursorFilter,
+                        comment.deletedAt.isNull(),
+                        post.deletedAt.isNull()
                 )
-                .orderBy(comment.createdAt.desc())
-                .offset(pageable.getOffset())
-                .limit(pageable.getPageSize() + 1)
+                .orderBy(comment.id.asc())
+                .limit(size + 1)   // size+1로 다음 페이지 여부 판단
                 .fetch();
-
-        return comments;
     }
 
 }

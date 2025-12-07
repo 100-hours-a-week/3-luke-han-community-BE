@@ -2,13 +2,17 @@ package boot.kakaotech.communitybe.auth.jwt;
 
 import boot.kakaotech.communitybe.common.exception.BusinessException;
 import boot.kakaotech.communitybe.common.exception.ErrorCode;
+import boot.kakaotech.communitybe.common.properties.JwtProperty;
 import boot.kakaotech.communitybe.user.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
 import java.util.Date;
 
 @Component
@@ -16,7 +20,7 @@ import java.util.Date;
 @Slf4j
 public class JwtVerifier {
 
-    private final JwtProvider provider;
+    private final JwtProperty property;
 
     /**
      * 토큰 유효성검사 메서드
@@ -68,9 +72,14 @@ public class JwtVerifier {
      */
     private Claims getClaimsFromToken(String token) {
         return Jwts.parser()
-                .verifyWith(provider.getSigninKey())
+                .verifyWith(getSigninKey())
                 .build()
                 .parseSignedClaims(token).getPayload();
+    }
+
+    private SecretKey getSigninKey() {
+        byte[] keyBytes = Decoders.BASE64.decode(property.getSecret());
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
 }

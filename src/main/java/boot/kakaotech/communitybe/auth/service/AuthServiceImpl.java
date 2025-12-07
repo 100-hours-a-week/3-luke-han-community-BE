@@ -10,6 +10,7 @@ import boot.kakaotech.communitybe.common.encoder.PasswordEncoder;
 import boot.kakaotech.communitybe.common.properties.JwtProperty;
 import boot.kakaotech.communitybe.common.properties.S3Property;
 import boot.kakaotech.communitybe.common.s3.service.S3Service;
+import boot.kakaotech.communitybe.common.util.KeyValueStore;
 import boot.kakaotech.communitybe.common.validation.Validator;
 import boot.kakaotech.communitybe.user.entity.User;
 import boot.kakaotech.communitybe.user.repository.UserRepository;
@@ -35,6 +36,7 @@ public class AuthServiceImpl implements AuthService {
     private final CookieUtil cookieUtil;
     private final Validator validator;
     private final ThreadLocalContext context;
+    private final KeyValueStore kvStore;
 
     private final PasswordEncoder passwordEncoder;
 
@@ -105,8 +107,9 @@ public class AuthServiceImpl implements AuthService {
         // 유저 존재 여부, 비밀번호 일치 여부 확인
 
         String accessToken = provider.generateToken(user, TokenName.ACCESS_TOKEN);
-        String refreshToken = provider.generateToken(user, TokenName.REFRESH_TOKEN);
+        String refreshToken = provider.generateRefreshToken(user);
         // 토큰 생성
+        log.info("[AuthService] 리프레시토큰 저장됨 - refreshToken: {}", kvStore.getRefreshToken(user.getId()));
 
         cookieUtil.addCookie(
                 response,
@@ -117,7 +120,8 @@ public class AuthServiceImpl implements AuthService {
         response.addHeader(jwtProperty.getAuthorization(), "Bearer " + accessToken);
         // Authorization 헤더에 넣기
 
-        String presignedUrl = s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), user.getProfileImageKey());
+        String profileImageKey = user.getProfileImageKey();
+        String presignedUrl = profileImageKey == null ? null : s3Service.createGETPresignedUrl(s3Property.getS3().getBucket(), profileImageKey);
 
         return LoginResponse.builder()
                 .userId(user.getId())

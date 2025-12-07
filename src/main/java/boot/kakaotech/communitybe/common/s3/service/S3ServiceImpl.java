@@ -1,5 +1,8 @@
 package boot.kakaotech.communitybe.common.s3.service;
 
+import boot.kakaotech.communitybe.common.properties.S3Property;
+import boot.kakaotech.communitybe.common.util.ThreadLocalContext;
+import boot.kakaotech.communitybe.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +23,8 @@ import java.util.UUID;
 public class S3ServiceImpl implements S3Service {
 
     private final S3Presigner presigner;
+    private final ThreadLocalContext context;
+    private final S3Property property;
 
     @Override
     public String createGETPresignedUrl(String bucketName, String keyName) {
@@ -68,6 +73,14 @@ public class S3ServiceImpl implements S3Service {
     @Override
     public String makePostKey(Integer postId, String fileName) {
         return "post:" + postId + ":" + UUID.randomUUID() + ":" + fileName;
+    }
+
+    @Override
+    public String getUserProfileUrl() {
+        User user = context.getCurrentUser();
+        String profileImageKey = user.getProfileImageKey();
+
+        return createGETPresignedUrl(property.getS3().getBucket(), profileImageKey);
     }
 
 }

@@ -13,6 +13,6 @@ public class SimpUserInfo {
 
     private String name;
 
-    private String profileImageUrl;
+    private String profileImageKey;
 
 }
