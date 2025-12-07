@@ -92,5 +92,9 @@ jobs:
           
           SSH_OPTS="-o StrictHostKeyChecking=no"
           
-          ssh $SSH_OPTS ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
-            "ssh $SSH_OPTS ${{ secrets.APP_USER }}@${{ secrets.APP_HOST }} 'cd ~ && ./deploy.sh ${IMAGE_TAG}'"
+          ssh $SSH_OPTS ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} "
+            mkdir -p ~/.ssh &&
+            printf '%s\n' '${{ secrets.BASTION_SSH_KEY }}' > ~/.ssh/deploy_key &&
+            chmod 600 ~/.ssh/deploy_key &&
+            ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key ${{ secrets.APP_USER }}@${{ secrets.APP_HOST }} 'cd ~ && ./deploy.sh ${IMAGE_TAG}'
+          "
