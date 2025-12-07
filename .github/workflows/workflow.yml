@@ -84,7 +84,7 @@ jobs:
         env:
           IMAGE_TAG: ${{ steps.vars.outputs.short_sha }}
         run: |
-          echo "[deploy-step] IMAGE_TAG=${IMAGE_TAG}
+          echo "[deploy-step] IMAGE_TAG=${IMAGE_TAG}"
           
           mkdir -p ~/.ssh
           echo "${{ secrets.BASTION_SSH_KEY }}" > ~/.ssh/id_rsa
