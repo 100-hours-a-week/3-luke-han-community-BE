@@ -34,8 +34,8 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                         Projections.fields(PostListDto.class,
                                 post.id,
                                 post.title,
-                                postLike.count().as("likeCount"),
-                                comment.count().as("commentCount"),
+                                postLike.countDistinct().as("likeCount"),
+                                comment.countDistinct().as("commentCount"),
                                 post.viewCount,
                                 post.createdAt)
                         .as("post"),
@@ -89,8 +89,8 @@ public class CustomPostRepositoryImpl implements CustomPostRepository {
                                         post.id,
                                         post.title,
                                         post.content,
-                                        postLike.count().as("likeCount"),
-                                        comment.count().as("commentCount"),
+                                        postLike.countDistinct().as("likeCount"),
+                                        comment.countDistinct().as("commentCount"),
                                         post.viewCount,
                                         likedExpr.as("liked"),
                                         post.createdAt
